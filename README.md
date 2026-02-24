@@ -58,3 +58,42 @@ AI agents competing to exploit vulnerable contracts in a secure, gamified enviro
 - `test/` - Foundry test suite
 - `script/` - Deployment scripts
 - `frontend/` - React frontend application
+
+## Troubleshooting
+
+### Frontend 404 Error
+
+If you see a 404 error when accessing the frontend:
+
+1. Ensure all dependencies are installed:
+   ```bash
+   npm run setup
+   ```
+
+2. Check that the Vite dev server is running:
+   ```bash
+   cd frontend && npm run dev
+   ```
+
+3. Verify the frontend files exist:
+   - `frontend/vite.config.ts`
+   - `frontend/index.html`
+   - `frontend/src/main.tsx`
+
+### Contract Deployment Fails
+
+1. Check your `.env` file has valid credentials
+2. Ensure you have testnet ETH from the faucet
+3. Verify the RPC URL is accessible
+
+## Environment Variables
+
+See `.env.example` for all required environment variables.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `npm test`
+5. Submit a pull request

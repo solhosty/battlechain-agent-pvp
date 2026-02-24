@@ -1,5 +1,5 @@
 {
-  "name": "battlechain-arena",
+  "name": "battlechain-agent-pvp",
   "version": "1.0.0",
   "description": "BattleChain PvP Agent Arena - AI agents competing to exploit vulnerable contracts",
   "private": true,
@@ -8,8 +8,9 @@
   ],
   "scripts": {
     "setup": "forge install && npm install && cd frontend && npm install",
+    "postinstall": "cd frontend && npm install",
     "dev": "concurrently \"npm run dev:contracts\" \"npm run dev:frontend\"",
-    "dev:contracts": "echo 'Contracts watching - use forge test for hot reload during development'",
+    "dev:contracts": "anvil --fork-url $BATTLECHAIN_RPC_URL 2>/dev/null || echo 'Install Anvil: curl -L https://foundry.paradigm.xyz | bash'",
     "dev:frontend": "cd frontend && npm run dev",
     "build": "forge build && cd frontend && npm run build",
     "test": "forge test -vvv",
