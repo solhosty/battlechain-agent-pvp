@@ -5,6 +5,9 @@ libs = ["lib"]
 test = "test"
 cache_path = "cache"
 
+[profile.default.remappings]
+"forge-std/=lib/forge-std/src/"
+
 # BattleChain Testnet Configuration
 [rpc_endpoints]
 battlechain = "${BATTLECHAIN_RPC_URL}"
