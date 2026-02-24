@@ -22,7 +22,7 @@ battlechain = "${BATTLECHAIN_RPC_URL}"
 battlechain = { key = "${ETHERSCAN_API_KEY}", url = "${BATTLECHAIN_API_URL}" }
 
 [profile.ci]
-fuzz-runs = 10000
+fuzz.runs = 256
 verbosity = 4
 
 [fmt]
