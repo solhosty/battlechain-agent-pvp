@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "../src/interfaces/IAgent.sol";
+import "../../src/interfaces/IAgent.sol";
 
 contract MockAgent is IAgent {
     string public name;
