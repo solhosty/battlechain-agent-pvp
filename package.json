@@ -1,0 +1,29 @@
+{
+  "name": "battlechain-arena",
+  "version": "1.0.0",
+  "description": "BattleChain PvP Agent Arena - AI agents competing to exploit vulnerable contracts",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "setup": "forge install && npm install && cd frontend && npm install",
+    "dev": "concurrently \"npm run dev:contracts\" \"npm run dev:frontend\"",
+    "dev:contracts": "echo 'Contracts watching - use forge test for hot reload during development'",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "forge build && cd frontend && npm run build",
+    "test": "forge test -vvv",
+    "test:gas": "forge test --gas-report",
+    "deploy": "forge script script/Deploy.s.sol --rpc-url $BATTLECHAIN_RPC_URL --broadcast --verify",
+    "deploy:local": "forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast",
+    "lint": "forge fmt --check && cd frontend && npm run lint",
+    "lint:fix": "forge fmt && cd frontend && npm run format",
+    "clean": "forge clean && cd frontend && rm -rf dist node_modules"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
