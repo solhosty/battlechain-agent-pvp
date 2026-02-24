@@ -1,0 +1,139 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "./interfaces/IBattle.sol";
+
+contract SpectatorBetting {
+    struct Bet {
+        uint256 amount;
+        bool claimed;
+    }
+
+    struct BattleInfo {
+        uint256 startTime;
+        bool resolved;
+        uint256 winningAgentIndex;
+    }
+
+    mapping(uint256 => BattleInfo) public battles;
+    mapping(uint256 => mapping(uint256 => mapping(address => Bet))) public bets;
+    mapping(uint256 => mapping(uint256 => uint256)) public totalWageredPerAgent;
+    mapping(uint256 => uint256) public totalPool;
+    mapping(uint256 => address[]) public battleAgents;
+    
+    address public arena;
+    bool public paused;
+
+    event BetPlaced(
+        uint256 indexed battleId,
+        address indexed bettor,
+        uint256 agentIndex,
+        uint256 amount
+    );
+    event BetClaimed(
+        uint256 indexed battleId,
+        address indexed bettor,
+        uint256 payout
+    );
+    event BattleRegistered(uint256 indexed battleId, address[] agents);
+
+    modifier onlyArena() {
+        require(msg.sender == arena, "Only arena");
+        _;
+    }
+
+    modifier whenNotPaused() {
+        require(!paused, "Contract paused");
+        _;
+    }
+
+    constructor(address _arena) {
+        arena = _arena;
+    }
+
+    function registerBattle(
+        uint256 battleId,
+        address[] calldata agents,
+        uint256 startTime
+    ) external onlyArena {
+        require(battles[battleId].startTime == 0, "Battle already registered");
+        
+        battles[battleId] = BattleInfo({
+            startTime: startTime,
+            resolved: false,
+            winningAgentIndex: 0
+        });
+        battleAgents[battleId] = agents;
+        
+        emit BattleRegistered(battleId, agents);
+    }
+
+    function placeBet(uint256 battleId, uint256 agentIndex) external payable whenNotPaused {
+        require(msg.value > 0, "Bet must be positive");
+        require(battles[battleId].startTime > 0, "Battle not registered");
+        require(block.timestamp < battles[battleId].startTime, "Battle started");
+        require(agentIndex < battleAgents[battleId].length, "Invalid agent index");
+
+        Bet storage bet = bets[battleId][agentIndex][msg.sender];
+        bet.amount += msg.value;
+
+        totalWageredPerAgent[battleId][agentIndex] += msg.value;
+        totalPool[battleId] += msg.value;
+
+        emit BetPlaced(battleId, msg.sender, agentIndex, msg.value);
+    }
+
+    function resolveBets(uint256 battleId, uint256 winningAgentIndex) external onlyArena {
+        require(battles[battleId].startTime > 0, "Battle not registered");
+        require(!battles[battleId].resolved, "Already resolved");
+        require(winningAgentIndex < battleAgents[battleId].length, "Invalid agent index");
+
+        battles[battleId].resolved = true;
+        battles[battleId].winningAgentIndex = winningAgentIndex;
+    }
+
+    function calculatePayout(
+        uint256 battleId,
+        uint256 agentIndex,
+        uint256 betAmount
+    ) public view returns (uint256) {
+        uint256 winningPool = totalWageredPerAgent[battleId][agentIndex];
+        if (winningPool == 0) return 0;
+
+        uint256 loserPool = totalPool[battleId] - winningPool;
+        return betAmount + ((betAmount * loserPool) / winningPool);
+    }
+
+    function claimPayout(uint256 battleId) external whenNotPaused {
+        BattleInfo storage battle = battles[battleId];
+        require(battle.resolved, "Battle not resolved");
+
+        uint256 winningAgentIndex = battle.winningAgentIndex;
+        Bet storage bet = bets[battleId][winningAgentIndex][msg.sender];
+        
+        require(bet.amount > 0, "No bet placed");
+        require(!bet.claimed, "Already claimed");
+
+        uint256 payout = calculatePayout(battleId, winningAgentIndex, bet.amount);
+        bet.claimed = true;
+
+        (bool success, ) = payable(msg.sender).call{value: payout}("");
+        require(success, "Payout failed");
+
+        emit BetClaimed(battleId, msg.sender, payout);
+    }
+
+    function getOdds(uint256 battleId, uint256 agentIndex) external view returns (uint256) {
+        uint256 agentPool = totalWageredPerAgent[battleId][agentIndex];
+        if (agentPool == 0) return 0;
+        
+        return (totalPool[battleId] * 1e18) / agentPool;
+    }
+
+    function setPaused(bool _paused) external {
+        require(msg.sender == arena, "Only arena");
+        paused = _paused;
+    }
+
+    receive() external payable {}
+}
