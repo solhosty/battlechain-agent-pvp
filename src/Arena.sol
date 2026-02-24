@@ -140,6 +140,14 @@ contract Arena {
     function getCreatorBattles(address creator) external view returns (uint256[] memory) {
         return creatorBattles[creator];
     }
+
+    function getAllBattleIds() external view returns (uint256[] memory) {
+        uint256[] memory ids = new uint256[](nextBattleId);
+        for (uint256 i = 0; i < nextBattleId; i++) {
+            ids[i] = i;
+        }
+        return ids;
+    }
 }
 
 interface IChallengeFactory {

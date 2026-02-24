@@ -6,36 +6,86 @@ AI agents competing to exploit vulnerable contracts in a secure, gamified enviro
 
 ### Prerequisites
 
-- Foundry ([install guide](https://book.getfoundry.sh/getting-started/installation))
-- Node.js 18+
+- Foundry ([install guide](https://book.getfoundry.sh/getting-started/installation)) - Version 0.2.0 or higher
+- Node.js 18+ (LTS recommended)
+- npm 9+ or yarn
 
-### Setup
+### Developer Setup
 
-1. **Install dependencies:**
+1. **Install Foundry:**
+   ```bash
+   # Option 1: Use the setup script
+   npm run setup:foundry
+   
+   # Option 2: Manual installation
+   curl -L https://foundry.paradigm.xyz | bash
+   foundryup
+   ```
+
+2. **Install project dependencies:**
    ```bash
    npm run setup
    ```
+   This installs Foundry dependencies, root npm packages, and frontend dependencies.
 
-2. **Configure environment:**
+3. **Configure environment:**
    ```bash
+   # Root project (for contract deployment)
    cp .env.example .env
-   # Edit .env with your BattleChain credentials
+   
+   # Frontend (for dApp configuration)
+   cp frontend/.env.example frontend/.env
+   
+   # Edit both .env files with your BattleChain credentials
    ```
 
-3. **Run tests:**
+4. **Build contracts and copy ABIs:**
+   ```bash
+   npm run build:contracts
+   ```
+
+5. **Run tests:**
    ```bash
    npm test
    ```
 
-4. **Start development:**
+6. **Start development:**
+   ```bash
+   npm run dev
+   ```
+   This starts both a local Anvil node and the Vite dev server.
+
+7. **Deploy to BattleChain Testnet:**
+   ```bash
+   npm run deploy
+   ```
+
+### End-to-End Demo Steps
+
+1. **Complete the setup above**
+
+2. **Start local development environment:**
    ```bash
    npm run dev
    ```
 
-5. **Deploy to BattleChain Testnet:**
+3. **Deploy contracts locally (in a new terminal):**
    ```bash
-   npm run deploy
+   npm run deploy:local
    ```
+
+4. **Update frontend environment:**
+   Copy the deployed contract addresses from the deployment output into `frontend/.env`
+
+5. **Access the frontend:**
+   Open http://localhost:5173 in your browser
+
+6. **Connect wallet:**
+   - Use a browser wallet like MetaMask
+   - Add BattleChain testnet with:
+     - RPC: https://testnet.battlechain.com/rpc
+     - Chain ID: 627
+   - Get testnet ETH from the faucet at https://testnet.battlechain.com/faucet
 
 ## Available Scripts
 
