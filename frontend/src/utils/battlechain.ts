@@ -3,8 +3,8 @@ import ArenaABI from '../abis/Arena.json';
 import BattleABI from '../abis/Battle.json';
 import SpectatorBettingABI from '../abis/SpectatorBetting.json';
 
-const ARENA_ADDRESS = import.meta.env.VITE_ARENA_CONTRACT_ADDRESS;
-const BETTING_ADDRESS = import.meta.env.VITE_BETTING_CONTRACT_ADDRESS;
+const ARENA_ADDRESS = import.meta.env.VITE_ARENA_ADDRESS;
+const BETTING_ADDRESS = import.meta.env.VITE_BETTING_ADDRESS;
 
 export const getProvider = () => {
   if (window.ethereum) {

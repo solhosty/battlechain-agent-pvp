@@ -8,9 +8,12 @@
   ],
   "scripts": {
     "setup": "forge install && npm install && cd frontend && npm install",
+    "setup:foundry": "curl -L https://foundry.paradigm.xyz | bash && foundryup",
     "postinstall": "cd frontend && npm install",
     "build:contracts": "forge build && node scripts/copy-abis.js",
+    "build:frontend": "cd frontend && npm run build",
     "dev": "concurrently \"npm run dev:contracts\" \"npm run dev:frontend\"",
+    "start:local": "anvil --fork-url $BATTLECHAIN_RPC_URL",
     "dev:contracts": "anvil --fork-url $BATTLECHAIN_RPC_URL 2>/dev/null || echo 'Install Anvil: curl -L https://foundry.paradigm.xyz | bash'",
     "dev:frontend": "cd frontend && npm run dev",
     "build": "forge build && cd frontend && npm run build",

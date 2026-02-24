@@ -27,7 +27,13 @@ export const useBattleChain = () => {
       const arena = getArenaContract(provider);
       
       // Get battle count and fetch each battle
-      const battleIds = await arena.getAllBattleIds();
+      let battleIds;
+      try {
+        battleIds = await arena.getAllBattleIds();
+      } catch (error) {
+        console.warn('getAllBattleIds not available, using fallback');
+        battleIds = [];
+      }
       const battleData = await Promise.all(
         battleIds.map(async (id) => {
           const battleAddress = await arena.battles(id);

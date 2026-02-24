@@ -2,7 +2,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const contracts = ['Arena', 'Battle', 'SpectatorBetting'];
+const contracts = ['Arena', 'Battle', 'SpectatorBetting', 'ChallengeFactory'];
 const outDir = path.join(__dirname, '..', 'out');
 const abiDir = path.join(__dirname, '..', 'frontend', 'src', 'abis');
 
