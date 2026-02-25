@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 import "../src/Arena.sol";
 import "../src/Battle.sol";
+import "../src/interfaces/IBattle.sol";
 import "../src/challenges/ReentrancyVault.sol";
 import "./mocks/MockAgent.sol";
 import "./mocks/MockAttackRegistry.sol";
@@ -128,7 +129,7 @@ contract ArenaTest is Test {
         arena.startBattle(battleId);
         
         Battle battle = Battle(arena.getBattle(battleId));
-        assertEq(uint256(battle.getState()), uint256(Battle.BattleState.ACTIVE));
+        assertEq(uint256(battle.getState()), uint256(IBattle.BattleState.ACTIVE));
     }
 
     function testPause() public {
