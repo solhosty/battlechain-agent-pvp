@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Address } from 'viem'
-import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
+import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
 import {
   createBattle,
@@ -24,6 +24,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
+type CreatePhase =
+  | 'idle'
+  | 'awaiting_wallet'
+  | 'submitted'
+  | 'confirming'
+  | 'timeout'
+  | 'error'
+  | 'success'
+
 const DashboardContent: React.FC = () => {
   const {
     isConnected,
@@ -33,6 +42,7 @@ const DashboardContent: React.FC = () => {
     creatorBattleIds,
   } = useBattleChain()
   const { address: account } = useAccount()
+  const chainId = useChainId()
   const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
   const hasExpectedChainId =
     Number.isFinite(expectedChainId) && expectedChainId > 0
@@ -40,18 +50,42 @@ const DashboardContent: React.FC = () => {
     chainId: hasExpectedChainId ? expectedChainId : undefined,
   })
   const { data: walletClient } = useWalletClient()
+  const rpcUrl = process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL
   const router = useRouter()
   const [savedAgents, setSavedAgents] = useState<Address[]>([])
   const [savedAgentsLoaded, setSavedAgentsLoaded] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState<Address | ''>('')
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [createPhase, setCreatePhase] = useState<CreatePhase>('idle')
   const [createForm, setCreateForm] = useState({
     challengeType: ChallengeType.REENTRANCY_VAULT,
     entryFee: '0.05',
     maxAgents: '4',
     durationHours: '24',
   })
+
+  const waitForReceiptWithTimeout = async (hash: `0x${string}`) => {
+    if (!publicClient) {
+      throw new Error(
+        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+      )
+    }
+
+    try {
+      return await publicClient.waitForTransactionReceipt({
+        hash,
+        timeout: 120_000,
+        pollingInterval: 2_000,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (message.toLowerCase().includes('timeout')) {
+        throw new Error('RPC timeout — try again')
+      }
+      throw error
+    }
+  }
 
   useEffect(() => {
     fetchBattles()
@@ -145,8 +179,37 @@ const DashboardContent: React.FC = () => {
   }
 
   const handleCreateBattle = async () => {
+    if (!hasExpectedChainId) {
+      toast.error('Missing NEXT_PUBLIC_CHAIN_ID in frontend env config')
+      setCreatePhase('error')
+      return
+    }
+
+    if (!rpcUrl) {
+      toast.error('Missing NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config')
+      setCreatePhase('error')
+      return
+    }
+
+    if (!publicClient) {
+      toast.error(
+        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+      )
+      setCreatePhase('error')
+      return
+    }
+
     if (!walletClient) {
       toast.error('Connect your wallet to create a battle')
+      setCreatePhase('error')
+      return
+    }
+
+    const actualChainId =
+      chainId ?? walletClient.chain?.id ?? publicClient.chain?.id
+    if (actualChainId && actualChainId !== expectedChainId) {
+      toast.error(`Wrong network. Switch to chain ${expectedChainId}.`)
+      setCreatePhase('error')
       return
     }
 
@@ -171,21 +234,31 @@ const DashboardContent: React.FC = () => {
 
     const durationSeconds = Math.round(durationHours * 3600)
     setCreating(true)
+    setCreatePhase('awaiting_wallet')
 
     try {
-      await createBattle(
+      const hash = await createBattle(
         walletClient,
         createForm.challengeType,
         entryFee,
         maxAgents,
         durationSeconds,
       )
+      setCreatePhase('submitted')
+      toast('Battle submitted. Waiting for confirmation...')
+      setCreatePhase('confirming')
+      await waitForReceiptWithTimeout(hash)
+      setCreatePhase('success')
       toast.success('Battle created')
       setCreateOpen(false)
       fetchBattles()
     } catch (error) {
-      console.error('Failed to create battle:', error)
-      toast.error('Failed to create battle')
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Failed to create battle:', message)
+      setCreatePhase(
+        message.toLowerCase().includes('timeout') ? 'timeout' : 'error',
+      )
+      toast.error(message)
     } finally {
       setCreating(false)
     }
@@ -427,7 +500,13 @@ const DashboardContent: React.FC = () => {
               disabled={creating}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-600"
             >
-              {creating ? 'Creating...' : 'Create battle'}
+              {createPhase === 'awaiting_wallet'
+                ? 'Awaiting wallet confirmation...'
+                : createPhase === 'confirming'
+                ? 'Confirming on-chain...'
+                : creating
+                ? 'Creating...'
+                : 'Create battle'}
             </button>
           </DialogFooter>
         </DialogContent>

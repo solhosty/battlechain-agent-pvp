@@ -42,6 +42,13 @@ Missing a WalletConnect project ID or chain configuration can prevent
 `useWalletClient()` from initializing.
 Set contract addresses from the deployment output before registering agents.
 
+## Battle Creation Flow
+
+- Open the dashboard and click Create Battle
+- Configure challenge type, entry fee, max agents, and duration
+- Confirm the transaction in your wallet
+- UI waits for transaction receipt (timeout on slow RPC)
+
 ### Build
 
 ```bash

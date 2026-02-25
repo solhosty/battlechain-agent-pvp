@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Abi, Address } from 'viem'
-import { usePublicClient, useWalletClient } from 'wagmi'
+import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
 import {
   addSavedAgent,
   loadSavedAgents,
@@ -20,6 +20,20 @@ interface CompilationResult {
   abi: Abi
   bytecode: `0x${string}`
   contractName?: string
+}
+
+type ActionPhase =
+  | 'idle'
+  | 'awaiting_wallet'
+  | 'submitted'
+  | 'confirming'
+  | 'timeout'
+  | 'error'
+  | 'success'
+
+interface WalletStatus {
+  ready: boolean
+  reason: string | null
 }
 
 const request = async <TResponse>(path: string, payload: unknown) => {
@@ -46,6 +60,8 @@ const request = async <TResponse>(path: string, payload: unknown) => {
 }
 
 export const useAgentDeploy = () => {
+  const { isConnected } = useAccount()
+  const chainId = useChainId()
   const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
   const hasExpectedChainId = Number.isFinite(expectedChainId) && expectedChainId > 0
   const publicClient = usePublicClient({
@@ -64,36 +80,91 @@ export const useAgentDeploy = () => {
     useState<CompilationResult | null>(null)
   const [deployedAddress, setDeployedAddress] = useState<string | null>(null)
   const [registering, setRegistering] = useState(false)
+  const [deployPhase, setDeployPhase] = useState<ActionPhase>('idle')
+  const [registerPhase, setRegisterPhase] = useState<ActionPhase>('idle')
   const [registrationHash, setRegistrationHash] = useState<
     `0x${string}` | null
   >(null)
   const [error, setError] = useState<string | null>(null)
   const [savedAgents, setSavedAgents] = useState<Address[]>([])
 
+  const walletStatus: WalletStatus = (() => {
+    if (!hasExpectedChainId) {
+      return {
+        ready: false,
+        reason: 'Missing NEXT_PUBLIC_CHAIN_ID in frontend env config.',
+      }
+    }
+    if (!rpcUrl) {
+      return {
+        ready: false,
+        reason:
+          'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+      }
+    }
+    if (!publicClient) {
+      return {
+        ready: false,
+        reason:
+          'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+      }
+    }
+    if (!isConnected) {
+      return {
+        ready: false,
+        reason: 'Connect your wallet from the navigation bar.',
+      }
+    }
+    if (!walletClient) {
+      return {
+        ready: false,
+        reason: 'Wallet client unavailable. Reconnect wallet and try again.',
+      }
+    }
+    const actualChainId =
+      chainId ?? walletClient.chain?.id ?? publicClient.chain?.id
+    if (actualChainId && actualChainId !== expectedChainId) {
+      return {
+        ready: false,
+        reason: `Wrong network. Switch to chain ${expectedChainId}.`,
+      }
+    }
+
+    return {
+      ready: true,
+      reason: null,
+    }
+  })()
+
   useEffect(() => {
     setSavedAgents(loadSavedAgents())
   }, [])
 
   const validateWalletClients = () => {
-    if (!hasExpectedChainId) {
-      throw new Error('Missing NEXT_PUBLIC_CHAIN_ID in frontend env config.')
+    if (!walletStatus.ready) {
+      throw new Error(walletStatus.reason ?? 'Wallet not ready.')
     }
-    if (!rpcUrl) {
-      throw new Error(
-        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
-      )
-    }
+  }
+
+  const waitForReceiptWithTimeout = async (hash: `0x${string}`) => {
     if (!publicClient) {
       throw new Error(
         'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
       )
     }
-    if (!walletClient) {
-      throw new Error('Wallet client unavailable. Reconnect wallet and try again.')
-    }
-    const actualChainId = walletClient.chain?.id ?? publicClient.chain?.id
-    if (actualChainId && actualChainId !== expectedChainId) {
-      throw new Error(`Wrong network. Switch to chain ${expectedChainId}.`)
+
+    try {
+      return await publicClient.waitForTransactionReceipt({
+        hash,
+        timeout: 120_000,
+        pollingInterval: 2_000,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (message.toLowerCase().includes('timeout')) {
+        throw new Error('RPC timeout — try again')
+      }
+      throw error
     }
   }
 
@@ -157,23 +228,28 @@ export const useAgentDeploy = () => {
 
   const deployAgent = async (bytecode: `0x${string}`, abi: Abi) => {
     setDeploying(true)
+    setDeployPhase('awaiting_wallet')
     try {
       setError(null)
       validateWalletClients()
 
       if (!walletClient) {
-        throw new Error('Wallet client not found')
+        throw new Error('Wallet client unavailable. Reconnect wallet and try again.')
       }
 
       if (!publicClient) {
-        throw new Error('Public client not found')
+        throw new Error(
+          'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+        )
       }
 
       const hash = await walletClient.deployContract({
         abi,
         bytecode,
       })
-      const receipt = await publicClient.waitForTransactionReceipt({ hash })
+      setDeployPhase('submitted')
+      setDeployPhase('confirming')
+      const receipt = await waitForReceiptWithTimeout(hash)
 
       if (!receipt.contractAddress) {
         throw new Error('Contract address not found')
@@ -182,6 +258,7 @@ export const useAgentDeploy = () => {
       setDeployedAddress(receipt.contractAddress)
       setCompilationStatus('deployed')
       setSavedAgents(addSavedAgent(receipt.contractAddress))
+      setDeployPhase('success')
 
       return receipt.contractAddress
     } catch (error) {
@@ -189,6 +266,9 @@ export const useAgentDeploy = () => {
       console.error('Deployment failed:', message)
       setError(message)
       setCompilationStatus('error')
+      setDeployPhase(
+        message.toLowerCase().includes('timeout') ? 'timeout' : 'error',
+      )
       return null
     } finally {
       setDeploying(false)
@@ -200,16 +280,19 @@ export const useAgentDeploy = () => {
     agentAddress: Address,
   ) => {
     setRegistering(true)
+    setRegisterPhase('awaiting_wallet')
     try {
       setError(null)
       validateWalletClients()
 
       if (!walletClient) {
-        throw new Error('Wallet client not found')
+        throw new Error('Wallet client unavailable. Reconnect wallet and try again.')
       }
 
       if (!publicClient) {
-        throw new Error('Public client not found')
+        throw new Error(
+          'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+        )
       }
 
       const hash = await registerAgentOnArena(
@@ -217,14 +300,20 @@ export const useAgentDeploy = () => {
         battleId,
         agentAddress,
       )
-      await publicClient.waitForTransactionReceipt({ hash })
+      setRegisterPhase('submitted')
+      setRegisterPhase('confirming')
+      await waitForReceiptWithTimeout(hash)
       setRegistrationHash(hash)
+      setRegisterPhase('success')
 
       return hash
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.error('Registration failed:', message)
       setError(message)
+      setRegisterPhase(
+        message.toLowerCase().includes('timeout') ? 'timeout' : 'error',
+      )
       return null
     } finally {
       setRegistering(false)
@@ -241,6 +330,9 @@ export const useAgentDeploy = () => {
     registering,
     registrationHash,
     error,
+    walletStatus,
+    deployPhase,
+    registerPhase,
     savedAgents,
     removeSavedAgent: (address: Address) => {
       setSavedAgents(removeSavedAgent(address))
