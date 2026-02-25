@@ -1,7 +1,12 @@
 import { useCallback, useState } from 'react'
 import { formatEther, zeroAddress } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
-import { ARENA_ABI, ARENA_ADDRESS, BATTLE_ABI } from '../utils/battlechain'
+import {
+  ARENA_ABI,
+  ARENA_ADDRESS,
+  BATTLE_ABI,
+  getBattleAgents,
+} from '../utils/battlechain'
 import type { BattleStateLabel, BattleSummary } from '../types/contracts'
 
 const battleStateLabels: BattleStateLabel[] = [
@@ -17,16 +22,19 @@ export const useBattleChain = () => {
   const publicClient = usePublicClient()
   const [battles, setBattles] = useState<BattleSummary[]>([])
   const [loading, setLoading] = useState(false)
+  const [creatorBattleIds, setCreatorBattleIds] = useState<bigint[]>([])
 
   const fetchBattles = useCallback(async () => {
     if (!publicClient) {
       setBattles([])
+      setCreatorBattleIds([])
       return
     }
 
     setLoading(true)
     try {
       let battleIds: bigint[] = []
+      let needsFallback = false
       try {
         battleIds = (await publicClient.readContract({
           address: ARENA_ADDRESS,
@@ -35,6 +43,40 @@ export const useBattleChain = () => {
         })) as bigint[]
       } catch (error) {
         console.warn('getAllBattleIds not available, using fallback')
+        needsFallback = true
+      }
+
+      if (needsFallback || battleIds.length === 0) {
+        try {
+          const nextBattleId = (await publicClient.readContract({
+            address: ARENA_ADDRESS,
+            abi: ARENA_ABI,
+            functionName: 'nextBattleId',
+          })) as bigint
+          const total = Number(nextBattleId)
+          battleIds = Array.from({ length: total }, (_, index) =>
+            BigInt(index),
+          )
+        } catch (error) {
+          console.warn('nextBattleId fallback not available')
+        }
+      }
+
+      if (isConnected && address) {
+        try {
+          const creatorIds = (await publicClient.readContract({
+            address: ARENA_ADDRESS,
+            abi: ARENA_ABI,
+            functionName: 'getCreatorBattles',
+            args: [address],
+          })) as bigint[]
+          setCreatorBattleIds(creatorIds)
+        } catch (error) {
+          console.warn('getCreatorBattles not available')
+          setCreatorBattleIds([])
+        }
+      } else {
+        setCreatorBattleIds([])
       }
 
       const battleData = await Promise.all(
@@ -95,13 +137,33 @@ export const useBattleChain = () => {
     } finally {
       setLoading(false)
     }
-  }, [publicClient])
+   }, [address, isConnected, publicClient])
+
+  const fetchBattleAgents = useCallback(
+    async (battleAddress: `0x${string}`) => {
+      if (!publicClient) {
+        return []
+      }
+
+      try {
+        return (await getBattleAgents(publicClient, battleAddress)) as
+          | `0x${string}`[]
+          | []
+      } catch (error) {
+        console.error('Failed to fetch battle agents:', error)
+        return []
+      }
+    },
+    [publicClient],
+  )
 
   return {
     account: address ?? null,
     isConnected,
     battles,
     loading,
+    creatorBattleIds,
     fetchBattles,
+    fetchBattleAgents,
   }
 }

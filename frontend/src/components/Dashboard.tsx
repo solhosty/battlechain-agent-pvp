@@ -1,15 +1,51 @@
 import React, { useEffect } from 'react'
 import { ConnectKitButton } from 'connectkit'
+import { useNavigate } from 'react-router-dom'
+import { useWalletClient } from 'wagmi'
 import { useBattleChain } from '../hooks/useBattleChain'
+import { registerAgent } from '../utils/battlechain'
+import { toast } from '@/components/ui/toast'
 
 const Dashboard: React.FC = () => {
-  const { account, isConnected, battles, loading, fetchBattles } = useBattleChain()
+  const {
+    account,
+    isConnected,
+    battles,
+    loading,
+    fetchBattles,
+    creatorBattleIds,
+  } = useBattleChain()
+  const { data: walletClient } = useWalletClient()
+  const navigate = useNavigate()
 
   useEffect(() => {
-    if (isConnected) {
-      fetchBattles();
+    fetchBattles()
+  }, [fetchBattles])
+
+  const handleJoinBattle = async (battleId: bigint) => {
+    if (!walletClient) {
+      toast.error('Connect your wallet to join a battle')
+      return
     }
-  }, [fetchBattles, isConnected]);
+
+    const agentAddress = window.prompt('Enter your agent contract address')
+    if (!agentAddress) {
+      return
+    }
+
+    try {
+      await registerAgent(walletClient, battleId, agentAddress as `0x${string}`)
+      toast.success('Agent registered for battle')
+      fetchBattles()
+    } catch (error) {
+      console.error('Failed to join battle:', error)
+      toast.error('Failed to join battle')
+    }
+  }
+
+  const handleViewDetails = (battleId: bigint) => {
+    navigate(`/spectate?battleId=${battleId.toString()}`)
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -43,7 +79,9 @@ const Dashboard: React.FC = () => {
         </div>
         <div className="bg-gray-800 p-6 rounded-lg">
           <h3 className="text-xl font-semibold mb-2">Your Battles</h3>
-          <p className="text-3xl font-bold text-purple-400">0</p>
+          <p className="text-3xl font-bold text-purple-400">
+            {creatorBattleIds.length}
+          </p>
         </div>
       </div>
 
@@ -83,12 +121,16 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="mt-4 flex gap-4">
-                  <button className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm">
+                  <button
+                    onClick={() => handleViewDetails(battle.id)}
+                    className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm"
+                  >
                     View Details
                   </button>
                   {battle.state === 'Pending' && (
                     <button
                       disabled={!isConnected}
+                      onClick={() => handleJoinBattle(battle.id)}
                       className={`px-4 py-2 rounded text-sm ${
                         isConnected
                           ? 'bg-green-600 hover:bg-green-700'
