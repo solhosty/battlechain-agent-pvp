@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
+const DEFAULT_OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 const SYSTEM_PROMPT = `You are a Solidity compiler assistant. Return only Solidity code for a single contract with no imports. The contract must implement the IAgent interface with these functions:
 - function attack(address target, bytes calldata data) external
@@ -19,24 +19,22 @@ const parseErrorMessage = async (response: Response) => {
 }
 
 export async function POST(request: Request) {
-  const apiKey = process.env.OPENROUTER_API_KEY
-  const model = process.env.OPENROUTER_MODEL
-
-  if (!apiKey || !model) {
-    return NextResponse.json(
-      { error: 'Missing OpenRouter configuration' },
-      { status: 500 },
-    )
-  }
-
   const body = await request.json().catch(() => null)
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : ''
 
   if (!prompt) {
-    return NextResponse.json({ error: 'Prompt is required' }, { status: 400 })
+    return new Response('Missing prompt', { status: 400 })
   }
 
-  const response = await fetch(OPENROUTER_URL, {
+  const apiKey = process.env.OPENROUTER_API_KEY
+  const model = process.env.OPENROUTER_MODEL ?? 'openrouter/auto'
+  const baseUrl = process.env.OPENROUTER_BASE_URL ?? DEFAULT_OPENROUTER_URL
+
+  if (!apiKey) {
+    return new Response('Missing OpenRouter API key', { status: 500 })
+  }
+
+  const response = await fetch(baseUrl, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -54,7 +52,7 @@ export async function POST(request: Request) {
   if (!response.ok) {
     const message = (await parseErrorMessage(response)) ||
       `OpenRouter request failed (${response.status})`
-    return NextResponse.json({ error: message }, { status: response.status })
+    return new Response(message, { status: response.status })
   }
 
   const data = await response.json().catch(() => null)
@@ -65,7 +63,7 @@ export async function POST(request: Request) {
     .trim()
 
   if (!code) {
-    return NextResponse.json({ error: 'Model returned no code' }, { status: 502 })
+    return new Response('Model returned no code', { status: 502 })
   }
 
   return NextResponse.json({ code })

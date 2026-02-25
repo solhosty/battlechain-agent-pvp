@@ -1,26 +1,14 @@
 import { NextResponse } from 'next/server'
 import solc from 'solc'
 
-const REQUIRED_FUNCTIONS = new Set(['attack', 'getName', 'owner'])
-
-const hasRequiredFunctions = (abi: unknown) => {
-  if (!Array.isArray(abi)) {
-    return false
-  }
-
-  return Array.from(REQUIRED_FUNCTIONS).every((name) =>
-    abi.some((entry) =>
-      entry?.type === 'function' && entry?.name === name,
-    ),
-  )
-}
+export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
   const code = typeof body?.code === 'string' ? body.code.trim() : ''
 
   if (!code) {
-    return NextResponse.json({ error: 'Solidity code is required' }, { status: 400 })
+    return new Response('Missing code', { status: 400 })
   }
 
   const input = {
@@ -49,24 +37,20 @@ export async function POST(request: Request) {
       )
 
     if (errors.length > 0) {
-      return NextResponse.json({ error: errors.join('\n') }, { status: 400 })
+      return new Response(errors.join('\n'), { status: 400 })
     }
   }
 
-  const contracts = output.contracts?.['Agent.sol'] ?? {}
+  const contracts = output.contracts?.['Agent.sol']
+  const entries = contracts ? Object.entries(contracts) : []
 
-  for (const [contractName, artifact] of Object.entries(contracts)) {
+  for (const [contractName, artifact] of entries) {
     const abi = (artifact as { abi?: unknown }).abi
     const bytecodeObject = (artifact as { evm?: { bytecode?: { object?: string } } })
       .evm?.bytecode?.object
+    const bytecode = bytecodeObject ? `0x${bytecodeObject}` : ''
 
-    if (!bytecodeObject || !hasRequiredFunctions(abi)) {
-      continue
-    }
-
-    const bytecode = `0x${bytecodeObject}`
-
-    if (bytecode === '0x') {
+    if (!bytecodeObject || bytecode === '0x') {
       continue
     }
 
@@ -77,8 +61,5 @@ export async function POST(request: Request) {
     })
   }
 
-  return NextResponse.json(
-    { error: 'No contract with required IAgent functions found' },
-    { status: 400 },
-  )
+  return new Response('No compiled contract output found', { status: 400 })
 }

@@ -17,22 +17,8 @@ interface CompilationResult {
   contractName?: string
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_AGENT_STUDIO_API_URL as
-  | string
-  | undefined
-
-const buildUrl = (path: string) => {
-  const base = API_BASE_URL?.trim()
-  if (!base) {
-    return path
-  }
-  const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  return `${normalizedBase}${normalizedPath}`
-}
-
 const request = async <TResponse>(path: string, payload: unknown) => {
-  const response = await fetch(buildUrl(path), {
+  const response = await fetch(`/api${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -76,7 +62,7 @@ export const useAgentDeploy = () => {
     try {
       setError(null)
       const response = await request<{ code?: string; source?: string }>(
-        '/api/agents/generate',
+        '/agents/generate',
         {
           prompt,
         },
@@ -105,7 +91,7 @@ export const useAgentDeploy = () => {
     try {
       setError(null)
       const response = await request<CompilationResult>(
-        '/api/agents/compile',
+        '/agents/compile',
         {
           code,
         },
