@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
-import { formatEther, ZeroAddress } from 'ethers';
-import { getArenaContract, getBattleContract, getProvider } from '../utils/battlechain';
-import type { BattleStateLabel, BattleSummary } from '../types/contracts';
+import { useCallback, useState } from 'react'
+import { formatEther, zeroAddress } from 'viem'
+import { useAccount, usePublicClient } from 'wagmi'
+import { ARENA_ABI, ARENA_ADDRESS, BATTLE_ABI } from '../utils/battlechain'
+import type { BattleStateLabel, BattleSummary } from '../types/contracts'
 
 const battleStateLabels: BattleStateLabel[] = [
   'Pending',
@@ -12,95 +13,95 @@ const battleStateLabels: BattleStateLabel[] = [
 ];
 
 export const useBattleChain = () => {
-  const [account, setAccount] = useState<string | null>(null);
-  const [battles, setBattles] = useState<BattleSummary[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { address, isConnected } = useAccount()
+  const publicClient = usePublicClient()
+  const [battles, setBattles] = useState<BattleSummary[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const connectWallet = async () => {
-    if (window.ethereum) {
-      try {
-        const accounts = (await window.ethereum.request({
-          method: 'eth_requestAccounts',
-        })) as string[];
-        setAccount(accounts[0] ?? null);
-      } catch (error) {
-        console.error('Failed to connect wallet:', error);
-      }
+  const fetchBattles = useCallback(async () => {
+    if (!publicClient) {
+      setBattles([])
+      return
     }
-  };
 
-  const fetchBattles = async () => {
-    setLoading(true);
+    setLoading(true)
     try {
-      const provider = getProvider();
-      if (!provider) {
-        setBattles([]);
-        return;
-      }
-      const arena = getArenaContract(provider);
-      
-      // Get battle count and fetch each battle
-      let battleIds: bigint[] = [];
+      let battleIds: bigint[] = []
       try {
-        battleIds = await arena.getAllBattleIds();
+        battleIds = (await publicClient.readContract({
+          address: ARENA_ADDRESS,
+          abi: ARENA_ABI,
+          functionName: 'getAllBattleIds',
+        })) as bigint[]
       } catch (error) {
-        console.warn('getAllBattleIds not available, using fallback');
+        console.warn('getAllBattleIds not available, using fallback')
       }
+
       const battleData = await Promise.all(
         battleIds.map(async (id) => {
-          const battleAddress = await arena.battles(id);
-          const battle = getBattleContract(battleAddress, provider);
-          
-          const [
-            state,
-            challenge,
-            entryFee,
-            deadline,
-            winner
-          ] = await Promise.all([
-            battle.getState(),
-            battle.getChallenge(),
-            battle.entryFee(),
-            battle.deadline(),
-            battle.getWinner()
-          ]);
-          
-          const stateIndex = Number(state);
+          const battleAddress = (await publicClient.readContract({
+            address: ARENA_ADDRESS,
+            abi: ARENA_ABI,
+            functionName: 'battles',
+            args: [id],
+          })) as `0x${string}`
+
+          const [state, challenge, entryFee, deadline, winner] =
+            await Promise.all([
+              publicClient.readContract({
+                address: battleAddress,
+                abi: BATTLE_ABI,
+                functionName: 'getState',
+              }),
+              publicClient.readContract({
+                address: battleAddress,
+                abi: BATTLE_ABI,
+                functionName: 'getChallenge',
+              }),
+              publicClient.readContract({
+                address: battleAddress,
+                abi: BATTLE_ABI,
+                functionName: 'entryFee',
+              }),
+              publicClient.readContract({
+                address: battleAddress,
+                abi: BATTLE_ABI,
+                functionName: 'deadline',
+              }),
+              publicClient.readContract({
+                address: battleAddress,
+                abi: BATTLE_ABI,
+                functionName: 'getWinner',
+              }),
+            ])
+
+          const stateIndex = Number(state)
           return {
             id,
             address: battleAddress,
             state: battleStateLabels[stateIndex] ?? 'Pending',
-            challenge,
-            entryFee: formatEther(entryFee),
+            challenge: challenge as string,
+            entryFee: formatEther(entryFee as bigint),
             deadline: new Date(Number(deadline) * 1000).toLocaleString(),
-            winner: winner === ZeroAddress ? null : winner,
-          };
-        })
-      );
-      
-      setBattles(battleData);
-    } catch (error) {
-      console.error('Failed to fetch battles:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+            winner:
+              winner === zeroAddress ? null : (winner as `0x${string}`),
+          }
+        }),
+      )
 
-  useEffect(() => {
-    if (!window.ethereum) return;
-    const ethereum = window.ethereum as {
-      on: (event: string, handler: (accounts: string[]) => void) => void;
-    };
-    ethereum.on('accountsChanged', (accounts) => {
-      setAccount(accounts[0] ?? null);
-    });
-  }, []);
+      setBattles(battleData)
+    } catch (error) {
+      console.error('Failed to fetch battles:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [publicClient])
 
   return {
-    account,
+    account: address ?? null,
+    isConnected,
     battles,
     loading,
-    connectWallet,
-    fetchBattles
-  };
-};
+    fetchBattles,
+  }
+}

@@ -1,14 +1,15 @@
-import React, { useEffect } from 'react';
-import { useBattleChain } from '../hooks/useBattleChain';
+import React, { useEffect } from 'react'
+import { ConnectKitButton } from 'connectkit'
+import { useBattleChain } from '../hooks/useBattleChain'
 
 const Dashboard: React.FC = () => {
-  const { account, battles, loading, connectWallet, fetchBattles } = useBattleChain();
+  const { account, isConnected, battles, loading, fetchBattles } = useBattleChain()
 
   useEffect(() => {
-    if (account) {
+    if (isConnected) {
       fetchBattles();
     }
-  }, [account]);
+  }, [fetchBattles, isConnected]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -17,12 +18,16 @@ const Dashboard: React.FC = () => {
           <h1 className="text-4xl font-bold mb-2">BattleChain Arena</h1>
           <p className="text-gray-400">PvP Agent Battle Platform</p>
         </div>
-        <button
-          onClick={connectWallet}
-          className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold"
-        >
-          {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect Wallet'}
-        </button>
+        <ConnectKitButton.Custom>
+          {({ show }) => (
+            <button
+              onClick={show}
+              className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold"
+            >
+              {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect Wallet'}
+            </button>
+          )}
+        </ConnectKitButton.Custom>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -82,8 +87,15 @@ const Dashboard: React.FC = () => {
                     View Details
                   </button>
                   {battle.state === 'Pending' && (
-                    <button className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-sm">
-                      Join Battle
+                    <button
+                      disabled={!isConnected}
+                      className={`px-4 py-2 rounded text-sm ${
+                        isConnected
+                          ? 'bg-green-600 hover:bg-green-700'
+                          : 'bg-gray-600 cursor-not-allowed'
+                      }`}
+                    >
+                      {isConnected ? 'Join Battle' : 'Connect to Join'}
                     </button>
                   )}
                 </div>
@@ -93,7 +105,7 @@ const Dashboard: React.FC = () => {
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Dashboard;
+export default Dashboard

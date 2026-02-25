@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { ethers } from 'ethers';
-import { placeBet } from '../utils/battlechain';
-import { useBattleChain } from '../hooks/useBattleChain';
+import React, { useEffect, useState } from 'react'
+import { ConnectKitButton } from 'connectkit'
+import { useWalletClient } from 'wagmi'
+import { useBattleChain } from '../hooks/useBattleChain'
+import { placeBet } from '../utils/battlechain'
+import type { BattleSummary } from '../types/contracts'
 
 interface Agent {
   address: string;
@@ -10,43 +12,53 @@ interface Agent {
 }
 
 const SpectatorView: React.FC = () => {
-  const { account, battles, loading, connectWallet } = useBattleChain();
-  const [selectedBattle, setSelectedBattle] = useState(null);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [betAmount, setBetAmount] = useState('');
-  const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
-  const [betting, setBetting] = useState(false);
+  const { account, isConnected, battles, loading } = useBattleChain()
+  const { data: walletClient } = useWalletClient()
+  const [selectedBattle, setSelectedBattle] = useState<BattleSummary | null>(null)
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [betAmount, setBetAmount] = useState('')
+  const [selectedAgent, setSelectedAgent] = useState<number | null>(null)
+  const [betting, setBetting] = useState(false)
 
   useEffect(() => {
     if (selectedBattle) {
       // Fetch agents for selected battle
-      fetchAgents(selectedBattle.id);
+      fetchAgents(selectedBattle.id)
     }
-  }, [selectedBattle]);
+  }, [selectedBattle])
 
-  const fetchAgents = async (battleId: string) => {
+  const fetchAgents = async (_battleId: bigint) => {
     // In production, fetch from contract
     // Mock data for now
     setAgents([
       { address: '0x...', name: 'Agent 1', index: 0 },
       { address: '0x...', name: 'Agent 2', index: 1 },
-    ]);
-  };
+    ])
+  }
 
   const handlePlaceBet = async () => {
-    if (!selectedBattle || selectedAgent === null || !betAmount) return;
-    
-    setBetting(true);
-    try {
-      await placeBet(selectedBattle.id, selectedAgent, parseFloat(betAmount));
-      alert('Bet placed successfully!');
-    } catch (error) {
-      console.error('Failed to place bet:', error);
-      alert('Failed to place bet');
-    } finally {
-      setBetting(false);
+    if (!selectedBattle || selectedAgent === null || !betAmount) return
+    if (!walletClient) {
+      alert('Connect your wallet to place a bet')
+      return
     }
-  };
+
+    setBetting(true)
+    try {
+      await placeBet(
+        walletClient,
+        selectedBattle.id,
+        BigInt(selectedAgent),
+        parseFloat(betAmount),
+      )
+      alert('Bet placed successfully!')
+    } catch (error) {
+      console.error('Failed to place bet:', error)
+      alert('Failed to place bet')
+    } finally {
+      setBetting(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -55,12 +67,16 @@ const SpectatorView: React.FC = () => {
           <h1 className="text-4xl font-bold mb-2">Spectator Arena</h1>
           <p className="text-gray-400">Watch battles and place bets on your favorite agents</p>
         </div>
-        <button
-          onClick={connectWallet}
-          className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold"
-        >
-          {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect Wallet'}
-        </button>
+        <ConnectKitButton.Custom>
+          {({ show }) => (
+            <button
+              onClick={show}
+              className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold"
+            >
+              {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect Wallet'}
+            </button>
+          )}
+        </ConnectKitButton.Custom>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -149,10 +165,10 @@ const SpectatorView: React.FC = () => {
 
               <button
                 onClick={handlePlaceBet}
-                disabled={betting || !selectedAgent || !betAmount}
+                disabled={!isConnected || betting || selectedAgent === null || !betAmount}
                 className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
               >
-                {betting ? 'Placing Bet...' : 'Place Bet'}
+                {betting ? 'Placing Bet...' : isConnected ? 'Place Bet' : 'Connect to Bet'}
               </button>
 
               <div className="mt-4 p-4 bg-gray-700 rounded-lg">
@@ -212,7 +228,7 @@ const SpectatorView: React.FC = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default SpectatorView;
+export default SpectatorView
