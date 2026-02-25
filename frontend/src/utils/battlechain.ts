@@ -7,6 +7,7 @@ import type { ChallengeType } from '@/types/contracts'
 
 export const ARENA_ADDRESS = process.env.NEXT_PUBLIC_ARENA_ADDRESS as Address
 export const BETTING_ADDRESS = process.env.NEXT_PUBLIC_BETTING_ADDRESS as Address
+export const RPC_URL = process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL
 export const ARENA_ABI = ArenaAbi.abi as Abi
 export const BATTLE_ABI = BattleAbi.abi as Abi
 export const BETTING_ABI = SpectatorBettingAbi.abi as Abi
@@ -112,28 +113,48 @@ export const discoverAgentsByOwner = async (
   client: PublicClient,
   owner: Address,
 ): Promise<Address[]> => {
+  console.info('[AgentDiscovery] request', {
+    owner,
+    arenaAddress: ARENA_ADDRESS,
+    chainId: client.chain?.id,
+    rpcUrl: RPC_URL,
+  })
+
   if (!ARENA_ADDRESS) {
     console.error('Agent discovery skipped: missing arena address', {
       arenaAddress: ARENA_ADDRESS,
       chainId: client.chain?.id,
+      owner,
     })
     return []
   }
 
   let logs: Array<{ args?: { agent?: Address } }>
 
+  const fromBlock = 0n
+  const toBlock = 'latest'
+
   try {
     logs = await client.getLogs({
       address: ARENA_ADDRESS,
       event: AGENT_REGISTERED_EVENT,
-      fromBlock: 0n,
-      toBlock: 'latest',
+      fromBlock,
+      toBlock,
+    })
+    console.info('[AgentDiscovery] getLogs', {
+      count: logs.length,
+      fromBlock,
+      toBlock,
+      arenaAddress: ARENA_ADDRESS,
+      chainId: client.chain?.id,
+      owner,
     })
   } catch (error) {
     console.error('Agent discovery RPC failed', {
       error,
       arenaAddress: ARENA_ADDRESS,
       chainId: client.chain?.id,
+      owner,
     })
     return []
   }
@@ -149,9 +170,12 @@ export const discoverAgentsByOwner = async (
           log,
           arenaAddress: ARENA_ADDRESS,
           chainId: client.chain?.id,
+          owner,
         })
         continue
       }
+
+      console.info('[AgentDiscovery] log', { agent })
 
       const normalizedAgent = normalizeAgentAddress(agent)
       if (matches.includes(normalizedAgent)) {
@@ -171,11 +195,15 @@ export const discoverAgentsByOwner = async (
           agent,
           arenaAddress: ARENA_ADDRESS,
           chainId: client.chain?.id,
+          owner,
         })
         continue
       }
 
+      console.info('[AgentDiscovery] owner', { agent, foundOwner })
+
       if (normalizeAgentAddress(foundOwner) === normalizedOwner) {
+        console.info('[AgentDiscovery] match', { agent, owner })
         matches.push(normalizedAgent)
       }
     } catch (error) {
@@ -183,6 +211,7 @@ export const discoverAgentsByOwner = async (
         error,
         arenaAddress: ARENA_ADDRESS,
         chainId: client.chain?.id,
+        owner,
       })
     }
   }

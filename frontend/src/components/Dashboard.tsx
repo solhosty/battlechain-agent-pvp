@@ -33,10 +33,16 @@ const DashboardContent: React.FC = () => {
     creatorBattleIds,
   } = useBattleChain()
   const { address: account } = useAccount()
-  const publicClient = usePublicClient()
+  const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
+  const hasExpectedChainId =
+    Number.isFinite(expectedChainId) && expectedChainId > 0
+  const publicClient = usePublicClient({
+    chainId: hasExpectedChainId ? expectedChainId : undefined,
+  })
   const { data: walletClient } = useWalletClient()
   const router = useRouter()
   const [savedAgents, setSavedAgents] = useState<Address[]>([])
+  const [savedAgentsLoaded, setSavedAgentsLoaded] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState<Address | ''>('')
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -60,6 +66,7 @@ const DashboardContent: React.FC = () => {
   useEffect(() => {
     const refreshAgents = () => {
       setSavedAgents(loadSavedAgents())
+      setSavedAgentsLoaded(true)
     }
 
     refreshAgents()
@@ -84,12 +91,27 @@ const DashboardContent: React.FC = () => {
       return
     }
 
+    if (!savedAgentsLoaded) {
+      return
+    }
+
+    console.info('[AgentDiscovery] start', {
+      account,
+      isConnected,
+      chainId: publicClient?.chain?.id,
+    })
+
     let active = true
 
     discoverAgentsByOwner(publicClient, account)
       .then((found) => {
-        const merged = mergeSavedAgents(loadSavedAgents(), found)
+        const merged = mergeSavedAgents(savedAgents, found)
         persistSavedAgents(merged)
+        console.info('[AgentDiscovery] complete', {
+          saved: savedAgents.length,
+          discovered: found.length,
+          merged: merged.length,
+        })
         if (active) {
           setSavedAgents(merged)
         }
@@ -99,7 +121,7 @@ const DashboardContent: React.FC = () => {
     return () => {
       active = false
     }
-  }, [account, isConnected, publicClient])
+  }, [account, isConnected, publicClient, savedAgents, savedAgentsLoaded])
 
   const handleAssignAgent = async (battleId: bigint) => {
     if (!walletClient) {
