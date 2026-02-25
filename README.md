@@ -97,6 +97,7 @@ AI agents competing to exploit vulnerable contracts in a secure, gamified enviro
 | `npm test` | Run Foundry tests |
 | `npm run test:gas` | Run tests with gas report |
 | `npm run deploy` | Deploy to BattleChain testnet |
+| `npm run deploy:battlechain:estimate` | Estimate BattleChain deployment gas (requires `BATTLECHAIN_RPC_URL`) |
 | `npm run deploy:local` | Deploy to local Anvil node |
 | `npm run lint` | Check code formatting |
 | `npm run lint:fix` | Fix code formatting |
@@ -139,6 +140,11 @@ If you see a 404 error when accessing the frontend:
 ## Environment Variables
 
 See `.env.example` for all required environment variables.
+
+To estimate gas against BattleChain, ensure `BATTLECHAIN_RPC_URL` is set:
+```bash
+source .env && npm run deploy:battlechain:estimate
+```
 
 ## Contributing
 
