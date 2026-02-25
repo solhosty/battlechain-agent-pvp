@@ -87,13 +87,13 @@ contract Arena {
     function registerAgent(uint256 battleId, address agent) external whenNotPaused {
         require(battles[battleId] != address(0), "Battle not found");
         
-        address challenge = Battle(battles[battleId]).getChallenge();
+        address challenge = Battle(payable(battles[battleId])).getChallenge();
         require(
             IAttackRegistry(attackRegistry).isUnderAttack(challenge),
             "Challenge not in attack mode"
         );
 
-        Battle(battles[battleId]).registerAgent(agent);
+        Battle(payable(battles[battleId])).registerAgent(agent);
         
         emit AgentRegistered(battleId, agent);
     }
@@ -101,7 +101,7 @@ contract Arena {
     function startBattle(uint256 battleId) external whenNotPaused {
         require(battles[battleId] != address(0), "Battle not found");
         
-        Battle battle = Battle(battles[battleId]);
+        Battle battle = Battle(payable(battles[battleId]));
         address challenge = battle.getChallenge();
         
         require(
@@ -117,7 +117,7 @@ contract Arena {
     function resolveBattle(uint256 battleId) external whenNotPaused {
         require(battles[battleId] != address(0), "Battle not found");
         
-        Battle battle = Battle(battles[battleId]);
+        Battle battle = Battle(payable(battles[battleId]));
         battle.resolveBattle();
         
         emit BattleResolved(battleId, battle.getWinner());
@@ -125,7 +125,7 @@ contract Arena {
 
     function claimPrize(uint256 battleId) external {
         require(battles[battleId] != address(0), "Battle not found");
-        Battle(battles[battleId]).claimPrize();
+        Battle(payable(battles[battleId])).claimPrize();
     }
 
     function setPaused(bool _paused) external onlyOwner {
