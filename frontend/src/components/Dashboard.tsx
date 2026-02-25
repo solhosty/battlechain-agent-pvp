@@ -3,11 +3,14 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Address } from 'viem'
-import { useWalletClient } from 'wagmi'
+import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
 import {
   createBattle,
+  discoverAgentsByOwner,
   loadSavedAgents,
+  mergeSavedAgents,
+  persistSavedAgents,
   registerAgent,
 } from '@/utils/battlechain'
 import { ChallengeType } from '@/types/contracts'
@@ -29,6 +32,8 @@ const DashboardContent: React.FC = () => {
     fetchBattles,
     creatorBattleIds,
   } = useBattleChain()
+  const { address: account } = useAccount()
+  const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
   const router = useRouter()
   const [savedAgents, setSavedAgents] = useState<Address[]>([])
@@ -66,6 +71,35 @@ const DashboardContent: React.FC = () => {
       window.removeEventListener('storage', refreshAgents)
     }
   }, [])
+
+  useEffect(() => {
+    if (!isConnected || !account) {
+      return
+    }
+
+    if (!publicClient) {
+      console.error('Agent discovery skipped: missing public client', {
+        account,
+      })
+      return
+    }
+
+    let active = true
+
+    discoverAgentsByOwner(publicClient, account)
+      .then((found) => {
+        const merged = mergeSavedAgents(loadSavedAgents(), found)
+        persistSavedAgents(merged)
+        if (active) {
+          setSavedAgents(merged)
+        }
+      })
+      .catch((error) => console.error('Agent discovery failed', error))
+
+    return () => {
+      active = false
+    }
+  }, [account, isConnected, publicClient])
 
   const handleAssignAgent = async (battleId: bigint) => {
     if (!walletClient) {
