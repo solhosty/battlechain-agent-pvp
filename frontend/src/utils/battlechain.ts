@@ -1,16 +1,21 @@
 import {
   BrowserProvider,
+  Contract,
   ContractRunner,
+  InterfaceAbi,
   JsonRpcSigner,
   parseEther,
 } from 'ethers';
-import { Arena__factory } from '../types/ethers-contracts/factories/Arena__factory';
-import { Battle__factory } from '../types/ethers-contracts/factories/Battle__factory';
-import { SpectatorBetting__factory } from '../types/ethers-contracts/factories/SpectatorBetting__factory';
+import ArenaAbi from '../abis/Arena.json';
+import BattleAbi from '../abis/Battle.json';
+import SpectatorBettingAbi from '../abis/SpectatorBetting.json';
 import type { ChallengeType } from '../types/contracts';
 
 const ARENA_ADDRESS = import.meta.env.VITE_ARENA_ADDRESS;
 const BETTING_ADDRESS = import.meta.env.VITE_BETTING_ADDRESS;
+const ARENA_ABI = ArenaAbi.abi as InterfaceAbi;
+const BATTLE_ABI = BattleAbi.abi as InterfaceAbi;
+const BETTING_ABI = SpectatorBettingAbi.abi as InterfaceAbi;
 
 export const getProvider = (): BrowserProvider | null =>
   window.ethereum ? new BrowserProvider(window.ethereum) : null;
@@ -23,13 +28,13 @@ export const getSigner = async (): Promise<JsonRpcSigner | null> => {
 };
 
 export const getArenaContract = (runner: ContractRunner) =>
-  Arena__factory.connect(ARENA_ADDRESS, runner);
+  new Contract(ARENA_ADDRESS, ARENA_ABI, runner);
 
 export const getBattleContract = (address: string, runner: ContractRunner) =>
-  Battle__factory.connect(address, runner);
+  new Contract(address, BATTLE_ABI, runner);
 
 export const getBettingContract = (runner: ContractRunner) =>
-  SpectatorBetting__factory.connect(BETTING_ADDRESS, runner);
+  new Contract(BETTING_ADDRESS, BETTING_ABI, runner);
 
 export const createBattle = async (
   challengeType: ChallengeType,
