@@ -41,10 +41,15 @@ const request = async <TResponse>(path: string, payload: unknown) => {
 }
 
 export const useAgentDeploy = () => {
-  const publicClient = usePublicClient()
-  const { data: walletClient } = useWalletClient()
   const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
   const hasExpectedChainId = Number.isFinite(expectedChainId) && expectedChainId > 0
+  const publicClient = usePublicClient({
+    chainId: hasExpectedChainId ? expectedChainId : undefined,
+  })
+  const { data: walletClient } = useWalletClient({
+    chainId: hasExpectedChainId ? expectedChainId : undefined,
+  })
+  const rpcUrl = process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL
   const [generating, setGenerating] = useState(false)
   const [deploying, setDeploying] = useState(false)
   const [generatedCode, setGeneratedCode] = useState('')
@@ -60,13 +65,21 @@ export const useAgentDeploy = () => {
   const [error, setError] = useState<string | null>(null)
 
   const validateWalletClients = () => {
-    if (!walletClient || !publicClient) {
-      throw new Error(
-        'Wallet not connected or RPC unavailable. Connect wallet and check chain config.',
-      )
-    }
     if (!hasExpectedChainId) {
       throw new Error('Missing NEXT_PUBLIC_CHAIN_ID in frontend env config.')
+    }
+    if (!rpcUrl) {
+      throw new Error(
+        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+      )
+    }
+    if (!publicClient) {
+      throw new Error(
+        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+      )
+    }
+    if (!walletClient) {
+      throw new Error('Wallet client unavailable. Reconnect wallet and try again.')
     }
     const actualChainId = walletClient.chain?.id ?? publicClient.chain?.id
     if (actualChainId && actualChainId !== expectedChainId) {
@@ -138,6 +151,14 @@ export const useAgentDeploy = () => {
       setError(null)
       validateWalletClients()
 
+      if (!walletClient) {
+        throw new Error('Wallet client not found')
+      }
+
+      if (!publicClient) {
+        throw new Error('Public client not found')
+      }
+
       const hash = await walletClient.deployContract({
         abi,
         bytecode,
@@ -171,6 +192,14 @@ export const useAgentDeploy = () => {
     try {
       setError(null)
       validateWalletClients()
+
+      if (!walletClient) {
+        throw new Error('Wallet client not found')
+      }
+
+      if (!publicClient) {
+        throw new Error('Public client not found')
+      }
 
       const hash = await registerAgentOnArena(
         walletClient,
