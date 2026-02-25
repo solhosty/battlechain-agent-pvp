@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
@@ -15,7 +15,14 @@ const Dashboard: React.FC = () => {
     fetchBattles,
     creatorBattleIds,
   } = useBattleChain()
-  const { data: walletClient } = useWalletClient()
+  const walletClientQuery = useWalletClient({ query: { enabled: isConnected } })
+  const walletClient = useMemo(
+    () => walletClientQuery.data ?? null,
+    [
+      walletClientQuery.data?.account?.address,
+      walletClientQuery.data?.chain?.id,
+    ],
+  )
   const router = useRouter()
 
   useEffect(() => {
