@@ -9,11 +9,11 @@ contract ReentrancyAttacker {
     uint256 public attackCount;
     uint256 public constant MAX_ATTACKS = 5;
 
-    constructor(address _vault) {
-        vault = ReentrancyVault(_vault);
+    constructor(address payable _vault) {
+        vault = ReentrancyVault(payable(_vault));
     }
 
-    function attack() external {
+    function attack() external payable {
         vault.deposit{value: 1 ether}();
         vault.withdrawAll();
     }
@@ -68,7 +68,7 @@ contract ReentrancyVaultTest is Test {
         vault.deposit{value: 5 ether}();
         
         // Deploy attacker contract
-        ReentrancyAttacker exploiter = new ReentrancyAttacker(address(vault));
+        ReentrancyAttacker exploiter = new ReentrancyAttacker(payable(address(vault)));
         
         uint256 vaultBalanceBefore = address(vault).balance;
         uint256 attackerBalanceBefore = address(exploiter).balance;
@@ -107,7 +107,7 @@ contract ReentrancyVaultTest is Test {
         vault.deposit{value: 5 ether}();
         
         // Deploy and execute attacker
-        ReentrancyAttacker exploiter = new ReentrancyAttacker(address(vault));
+        ReentrancyAttacker exploiter = new ReentrancyAttacker(payable(address(vault)));
         
         vm.prank(attacker);
         exploiter.attack{value: 1 ether}();

@@ -98,7 +98,7 @@ contract ArenaTest is Test {
         vm.prank(player1);
         arena.registerAgent(battleId, address(agent));
         
-        Battle battle = Battle(arena.getBattle(battleId));
+        Battle battle = Battle(payable(arena.getBattle(battleId)));
         address[] memory agents = battle.getAgents();
         assertEq(agents.length, 1);
         assertEq(agents[0], address(agent));
@@ -129,7 +129,7 @@ contract ArenaTest is Test {
         vm.prank(player1);
         arena.startBattle(battleId);
         
-        Battle battle = Battle(arena.getBattle(battleId));
+        Battle battle = Battle(payable(arena.getBattle(battleId)));
         assertEq(uint256(battle.getState()), uint256(IBattle.BattleState.ACTIVE));
     }
 
