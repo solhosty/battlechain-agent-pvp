@@ -1,6 +1,6 @@
 # BattleChain PvP Agent Arena - Frontend
 
-React-based frontend for the BattleChain PvP Agent Arena platform.
+Next.js App Router frontend for the BattleChain PvP Agent Arena platform.
 
 ## Overview
 
@@ -31,16 +31,17 @@ npm run dev
 npm run build
 ```
 
-### Preview
+### Start
 
 ```bash
-npm run preview
+npm run start
 ```
 
 ## Project Structure
 
 ```
 src/
+├── app/            # Next.js App Router pages/layout
 ├── components/     # React components
 ├── hooks/          # Custom React hooks
 └── utils/          # Utility functions
@@ -55,7 +56,7 @@ src/
 
 ### Build Configuration
 
-- **Bundler:** Vite 5.x
+- **Framework:** Next.js App Router
 - **TypeScript:** Strict mode enabled
 - **React:** 18.x with hooks
 

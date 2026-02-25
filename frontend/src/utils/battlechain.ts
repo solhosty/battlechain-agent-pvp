@@ -1,12 +1,12 @@
 import type { Abi, Address, PublicClient, WalletClient } from 'viem'
 import { parseEther } from 'viem'
-import ArenaAbi from '../abis/Arena.json'
-import BattleAbi from '../abis/Battle.json'
-import SpectatorBettingAbi from '../abis/SpectatorBetting.json'
-import type { ChallengeType } from '../types/contracts'
+import ArenaAbi from '@/abis/Arena.json'
+import BattleAbi from '@/abis/Battle.json'
+import SpectatorBettingAbi from '@/abis/SpectatorBetting.json'
+import type { ChallengeType } from '@/types/contracts'
 
-export const ARENA_ADDRESS = import.meta.env.VITE_ARENA_ADDRESS as Address
-export const BETTING_ADDRESS = import.meta.env.VITE_BETTING_ADDRESS as Address
+export const ARENA_ADDRESS = process.env.NEXT_PUBLIC_ARENA_ADDRESS as Address
+export const BETTING_ADDRESS = process.env.NEXT_PUBLIC_BETTING_ADDRESS as Address
 export const ARENA_ABI = ArenaAbi.abi as Abi
 export const BATTLE_ABI = BattleAbi.abi as Abi
 export const BETTING_ABI = SpectatorBettingAbi.abi as Abi

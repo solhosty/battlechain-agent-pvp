@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Abi, Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
-import { registerAgent as registerAgentOnArena } from '../utils/battlechain'
+import { registerAgent as registerAgentOnArena } from '@/utils/battlechain'
 
 type CompilationStatus =
   | 'idle'
@@ -16,13 +16,13 @@ interface CompilationResult {
   bytecode: `0x${string}`
 }
 
-const API_BASE_URL = import.meta.env.VITE_AGENT_STUDIO_API_URL as
+const API_BASE_URL = process.env.NEXT_PUBLIC_AGENT_STUDIO_API_URL as
   | string
   | undefined
 
 const request = async <TResponse>(path: string, payload: unknown) => {
   if (!API_BASE_URL) {
-    throw new Error('Missing VITE_AGENT_STUDIO_API_URL')
+    throw new Error('Missing NEXT_PUBLIC_AGENT_STUDIO_API_URL')
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {

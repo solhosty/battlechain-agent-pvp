@@ -152,6 +152,6 @@
   }
 }
 
-#root {
+.app-shell {
   min-height: 100vh;
 }

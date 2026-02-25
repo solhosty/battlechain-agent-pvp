@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatEther, zeroAddress } from 'viem'
 import { useAccount, usePublicClient } from 'wagmi'
 import {
@@ -24,8 +24,20 @@ export const useBattleChain = () => {
   const [loading, setLoading] = useState(false)
   const [creatorBattleIds, setCreatorBattleIds] = useState<bigint[]>([])
 
+  const publicClientRef = useRef(publicClient)
+  const accountRef = useRef({ address, isConnected })
+
+  useEffect(() => {
+    publicClientRef.current = publicClient
+    accountRef.current = { address, isConnected }
+  }, [publicClient, address, isConnected])
+
   const fetchBattles = useCallback(async () => {
-    if (!publicClient) {
+    const client = publicClientRef.current
+    const { address: currentAddress, isConnected: connected } =
+      accountRef.current
+
+    if (!client) {
       setBattles([])
       setCreatorBattleIds([])
       return
@@ -36,7 +48,7 @@ export const useBattleChain = () => {
       let battleIds: bigint[] = []
       let needsFallback = false
       try {
-        battleIds = (await publicClient.readContract({
+        battleIds = (await client.readContract({
           address: ARENA_ADDRESS,
           abi: ARENA_ABI,
           functionName: 'getAllBattleIds',
@@ -48,7 +60,7 @@ export const useBattleChain = () => {
 
       if (needsFallback || battleIds.length === 0) {
         try {
-          const nextBattleId = (await publicClient.readContract({
+          const nextBattleId = (await client.readContract({
             address: ARENA_ADDRESS,
             abi: ARENA_ABI,
             functionName: 'nextBattleId',
@@ -62,13 +74,13 @@ export const useBattleChain = () => {
         }
       }
 
-      if (isConnected && address) {
+      if (connected && currentAddress) {
         try {
-          const creatorIds = (await publicClient.readContract({
+          const creatorIds = (await client.readContract({
             address: ARENA_ADDRESS,
             abi: ARENA_ABI,
             functionName: 'getCreatorBattles',
-            args: [address],
+            args: [currentAddress],
           })) as bigint[]
           setCreatorBattleIds(creatorIds)
         } catch (error) {
@@ -81,7 +93,7 @@ export const useBattleChain = () => {
 
       const battleData = await Promise.all(
         battleIds.map(async (id) => {
-          const battleAddress = (await publicClient.readContract({
+          const battleAddress = (await client.readContract({
             address: ARENA_ADDRESS,
             abi: ARENA_ABI,
             functionName: 'battles',
@@ -90,27 +102,27 @@ export const useBattleChain = () => {
 
           const [state, challenge, entryFee, deadline, winner] =
             await Promise.all([
-              publicClient.readContract({
+              client.readContract({
                 address: battleAddress,
                 abi: BATTLE_ABI,
                 functionName: 'getState',
               }),
-              publicClient.readContract({
+              client.readContract({
                 address: battleAddress,
                 abi: BATTLE_ABI,
                 functionName: 'getChallenge',
               }),
-              publicClient.readContract({
+              client.readContract({
                 address: battleAddress,
                 abi: BATTLE_ABI,
                 functionName: 'entryFee',
               }),
-              publicClient.readContract({
+              client.readContract({
                 address: battleAddress,
                 abi: BATTLE_ABI,
                 functionName: 'deadline',
               }),
-              publicClient.readContract({
+              client.readContract({
                 address: battleAddress,
                 abi: BATTLE_ABI,
                 functionName: 'getWinner',
@@ -137,16 +149,17 @@ export const useBattleChain = () => {
     } finally {
       setLoading(false)
     }
-   }, [address, isConnected, publicClient])
+   }, [])
 
   const fetchBattleAgents = useCallback(
     async (battleAddress: `0x${string}`) => {
-      if (!publicClient) {
+      const client = publicClientRef.current
+      if (!client) {
         return []
       }
 
       try {
-        return (await getBattleAgents(publicClient, battleAddress)) as
+        return (await getBattleAgents(client, battleAddress)) as
           | `0x${string}`[]
           | []
       } catch (error) {
@@ -154,7 +167,7 @@ export const useBattleChain = () => {
         return []
       }
     },
-    [publicClient],
+    [],
   )
 
   return {
