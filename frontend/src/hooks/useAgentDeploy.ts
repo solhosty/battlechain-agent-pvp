@@ -16,16 +16,8 @@ interface CompilationResult {
   bytecode: `0x${string}`
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_AGENT_STUDIO_API_URL as
-  | string
-  | undefined
-
 const request = async <TResponse>(path: string, payload: unknown) => {
-  if (!API_BASE_URL) {
-    throw new Error('Missing NEXT_PUBLIC_AGENT_STUDIO_API_URL')
-  }
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(path, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
