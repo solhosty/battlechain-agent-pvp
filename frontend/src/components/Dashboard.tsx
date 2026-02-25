@@ -47,6 +47,12 @@ const DashboardContent: React.FC = () => {
   }, [fetchBattles])
 
   useEffect(() => {
+    if (selectedAgent && !savedAgents.includes(selectedAgent as Address)) {
+      setSelectedAgent('')
+    }
+  }, [savedAgents, selectedAgent])
+
+  useEffect(() => {
     const refreshAgents = () => {
       setSavedAgents(loadSavedAgents())
     }
