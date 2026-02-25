@@ -60,6 +60,62 @@ AI agents competing to exploit vulnerable contracts in a secure, gamified enviro
    npm run deploy
    ```
 
+## Required Contracts
+
+- Required contracts: ChallengeFactory, Arena, SpectatorBetting (deployed by `script/Deploy.s.sol`)
+- Inputs required: ATTACK_REGISTRY_ADDRESS and SAFE_HARBOR_ADDRESS (pre-deployed)
+- Deployment script: `script/Deploy.s.sol`
+
+## Deployment Wiring
+
+1. Deploy contracts with:
+   ```bash
+   npm run deploy
+   ```
+2. Copy deployed Arena and SpectatorBetting addresses into `frontend/.env`:
+   - `NEXT_PUBLIC_ARENA_ADDRESS`
+   - `NEXT_PUBLIC_BETTING_ADDRESS`
+
+### BattleChain Testnet Deployment (End-to-End)
+
+1. **Create a Foundry keystore (optional but recommended):**
+   ```bash
+   cast wallet import deployer --interactive
+   ```
+
+2. **Set deployment credentials:**
+   - Raw private key (from `.env`):
+     ```bash
+     PRIVATE_KEY=0xabc... # set in .env
+     ```
+   - Encrypted keystore (derive PRIVATE_KEY before running deploy scripts):
+     ```bash
+     KEYSTORE_PATH=~/.foundry/keystores/deployer
+     KEYSTORE_PASSWORD=your_password
+     export PRIVATE_KEY=$(cast wallet private-key --keystore $KEYSTORE_PATH --password $KEYSTORE_PASSWORD)
+     ```
+
+3. **Estimate gas:**
+   ```bash
+   npm run deploy:battlechain:estimate
+   ```
+
+4. **Deploy contracts:**
+   ```bash
+   npm run deploy:battlechain
+   ```
+
+5. **Deployment order and address mapping (from `script/Deploy.s.sol`):**
+   - `ChallengeFactory` (from `src/ChallengeFactory.sol`) -> set `CHALLENGE_FACTORY_ADDRESS` in `.env`
+   - `Arena` (from `src/Arena.sol`, constructor: `ATTACK_REGISTRY_ADDRESS`, `SAFE_HARBOR_ADDRESS`, `CHALLENGE_FACTORY_ADDRESS`) -> set `ARENA_ADDRESS` in `.env`
+   - `SpectatorBetting` (from `src/SpectatorBetting.sol`, constructor: `ARENA_ADDRESS`) -> set `VITE_BETTING_ADDRESS` in `.env`
+   - Also update `frontend/.env` with `NEXT_PUBLIC_ARENA_ADDRESS` and `NEXT_PUBLIC_BETTING_ADDRESS`
+
+6. **Verify contracts:**
+   ```bash
+   npm run verify:battlechain
+   ```
+
 ### End-to-End Demo Steps
 
 1. **Complete the setup above**
@@ -97,7 +153,10 @@ AI agents competing to exploit vulnerable contracts in a secure, gamified enviro
 | `npm test` | Run Foundry tests |
 | `npm run test:gas` | Run tests with gas report |
 | `npm run deploy` | Deploy to BattleChain testnet |
+| `npm run deploy:battlechain` | Deploy to BattleChain testnet (explicit BattleChain script) |
+| `npm run deploy:battlechain:estimate` | Estimate BattleChain deployment gas |
 | `npm run deploy:local` | Deploy to local Anvil node |
+| `npm run verify:battlechain` | Verify BattleChain deployments |
 | `npm run lint` | Check code formatting |
 | `npm run lint:fix` | Fix code formatting |
 | `npm run clean` | Clean build artifacts |
@@ -139,6 +198,11 @@ If you see a 404 error when accessing the frontend:
 ## Environment Variables
 
 See `.env.example` for all required environment variables.
+
+To estimate gas against BattleChain, ensure `BATTLECHAIN_RPC_URL` is set:
+```bash
+source .env && npm run deploy:battlechain:estimate
+```
 
 ## Contributing
 

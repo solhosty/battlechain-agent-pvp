@@ -43,6 +43,8 @@ const request = async <TResponse>(path: string, payload: unknown) => {
 export const useAgentDeploy = () => {
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
+  const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
+  const hasExpectedChainId = Number.isFinite(expectedChainId) && expectedChainId > 0
   const [generating, setGenerating] = useState(false)
   const [deploying, setDeploying] = useState(false)
   const [generatedCode, setGeneratedCode] = useState('')
@@ -56,6 +58,21 @@ export const useAgentDeploy = () => {
     `0x${string}` | null
   >(null)
   const [error, setError] = useState<string | null>(null)
+
+  const validateWalletClients = () => {
+    if (!walletClient || !publicClient) {
+      throw new Error(
+        'Wallet not connected or RPC unavailable. Connect wallet and check chain config.',
+      )
+    }
+    if (!hasExpectedChainId) {
+      throw new Error('Missing NEXT_PUBLIC_CHAIN_ID in frontend env config.')
+    }
+    const actualChainId = walletClient.chain?.id ?? publicClient.chain?.id
+    if (actualChainId && actualChainId !== expectedChainId) {
+      throw new Error(`Wrong network. Switch to chain ${expectedChainId}.`)
+    }
+  }
 
   const generateAgent = async (prompt: string) => {
     setGenerating(true)
@@ -119,9 +136,7 @@ export const useAgentDeploy = () => {
     setDeploying(true)
     try {
       setError(null)
-      if (!walletClient || !publicClient) {
-        throw new Error('Wallet not connected')
-      }
+      validateWalletClients()
 
       const hash = await walletClient.deployContract({
         abi,
@@ -155,9 +170,7 @@ export const useAgentDeploy = () => {
     setRegistering(true)
     try {
       setError(null)
-      if (!walletClient || !publicClient) {
-        throw new Error('Wallet not connected')
-      }
+      validateWalletClients()
 
       const hash = await registerAgentOnArena(
         walletClient,

@@ -25,6 +25,23 @@ npm install
 npm run dev
 ```
 
+## Environment Configuration
+
+Create `frontend/.env` and set:
+
+```bash
+NEXT_PUBLIC_BATTLECHAIN_RPC_URL=
+NEXT_PUBLIC_CHAIN_ID=
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=
+NEXT_PUBLIC_AGENT_STUDIO_API_URL=
+NEXT_PUBLIC_ARENA_ADDRESS=
+NEXT_PUBLIC_BETTING_ADDRESS=
+```
+
+Missing a WalletConnect project ID or chain configuration can prevent
+`useWalletClient()` from initializing.
+Set contract addresses from the deployment output before registering agents.
+
 ### Build
 
 ```bash
