@@ -199,6 +199,11 @@ If you see a 404 error when accessing the frontend:
 
 See `.env.example` for all required environment variables.
 
+To estimate gas against BattleChain, ensure `BATTLECHAIN_RPC_URL` is set:
+```bash
+source .env && npm run deploy:battlechain:estimate
+```
+
 ## Contributing
 
 1. Fork the repository
