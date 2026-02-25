@@ -9,11 +9,13 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-900 text-white">
         <AppNav />
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/studio" element={<AgentStudio />} />
-          <Route path="/spectate" element={<SpectatorView />} />
-        </Routes>
+        <main className="mx-auto w-full max-w-6xl px-4">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/studio" element={<AgentStudio />} />
+            <Route path="/spectate" element={<SpectatorView />} />
+          </Routes>
+        </main>
       </div>
     </Router>
   )

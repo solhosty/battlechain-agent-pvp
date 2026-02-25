@@ -46,7 +46,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
+    <div className="py-10">
       <header className="mb-8">
         <h1 className="text-4xl font-bold mb-2">BattleChain Arena</h1>
         <p className="text-gray-400">PvP Agent Battle Platform</p>
