@@ -189,11 +189,11 @@ const AgentStudio: React.FC = () => {
                 Switch to chain {expectedChainId} to deploy or register.
               </div>
             )}
-            <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-3 text-gray-300">
+            {/* <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-3 text-gray-300">
               Set <code className="font-mono">NEXT_PUBLIC_ARENA_ADDRESS</code> and{' '}
               <code className="font-mono">NEXT_PUBLIC_BETTING_ADDRESS</code> in{' '}
               <code className="font-mono">frontend/.env</code> before registering.
-            </div>
+            </div> */}
           </div>
 
           <div className="mt-4 flex gap-4">
