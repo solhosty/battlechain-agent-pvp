@@ -7,14 +7,6 @@ import "./interfaces/IAttackRegistry.sol";
 import "./challenges/BaseChallenge.sol";
 
 contract Battle is IBattle {
-    enum BattleState {
-        PENDING,
-        ACTIVE,
-        EXECUTING,
-        RESOLVED,
-        CLAIMED
-    }
-
     address public immutable challenge;
     uint256 public immutable entryFee;
     uint256 public immutable deadline;
@@ -22,7 +14,7 @@ contract Battle is IBattle {
     address public immutable creator;
     
     address[] public agents;
-    BattleState public state;
+    IBattle.BattleState public state;
     address public winner;
     uint256 public winningAmount;
     mapping(address => bool) public hasClaimed;
@@ -37,7 +29,7 @@ contract Battle is IBattle {
         _;
     }
 
-    modifier whenState(BattleState _state) {
+    modifier whenState(IBattle.BattleState _state) {
         require(state == _state, "Invalid state");
         _;
     }
@@ -54,10 +46,10 @@ contract Battle is IBattle {
         deadline = _deadline;
         arena = msg.sender;
         creator = _creator;
-        state = BattleState.PENDING;
+        state = IBattle.BattleState.PENDING;
     }
 
-    function registerAgent(address agent) external onlyArena whenState(BattleState.PENDING) {
+    function registerAgent(address agent) external onlyArena whenState(IBattle.BattleState.PENDING) {
         require(agents.length < 10, "Max agents reached");
         require(IAgent(agent).owner() != address(0), "Invalid agent");
         
@@ -65,16 +57,16 @@ contract Battle is IBattle {
         emit AgentRegistered(agent);
     }
 
-    function startBattle() external onlyArena whenState(BattleState.PENDING) {
+    function startBattle() external onlyArena whenState(IBattle.BattleState.PENDING) {
         require(agents.length >= 2, "Need at least 2 agents");
-        state = BattleState.ACTIVE;
+        state = IBattle.BattleState.ACTIVE;
         emit BattleStarted(block.timestamp);
     }
 
-    function resolveBattle() external onlyArena whenState(BattleState.ACTIVE) {
+    function resolveBattle() external onlyArena whenState(IBattle.BattleState.ACTIVE) {
         require(block.timestamp >= deadline, "Battle still active");
         
-        state = BattleState.EXECUTING;
+        state = IBattle.BattleState.EXECUTING;
         
         address winningAgent;
         uint256 highestExtraction;
@@ -98,17 +90,17 @@ contract Battle is IBattle {
         
         winner = winningAgent;
         winningAmount = highestExtraction;
-        state = BattleState.RESOLVED;
+        state = IBattle.BattleState.RESOLVED;
         
         emit BattleResolved(winner, winningAmount, extractions);
     }
 
-    function claimPrize() external whenState(BattleState.RESOLVED) {
+    function claimPrize() external whenState(IBattle.BattleState.RESOLVED) {
         require(msg.sender == winner || msg.sender == IAgent(winner).owner(), "Not winner");
         require(!hasClaimed[winner], "Already claimed");
         
         hasClaimed[winner] = true;
-        state = BattleState.CLAIMED;
+        state = IBattle.BattleState.CLAIMED;
         
         // 70% to winner, 30% to creator/spectators
         uint256 winnerShare = (address(this).balance * 70) / 100;
@@ -125,7 +117,7 @@ contract Battle is IBattle {
         emit PrizeClaimed(winner, winnerShare);
     }
 
-    function getState() external view returns (BattleState) {
+    function getState() external view returns (IBattle.BattleState) {
         return state;
     }
 

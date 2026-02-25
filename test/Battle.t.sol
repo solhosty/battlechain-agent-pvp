@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 import "../src/Battle.sol";
+import "../src/interfaces/IBattle.sol";
 import "../src/challenges/ReentrancyVault.sol";
 import "./mocks/MockAgent.sol";
 
@@ -55,7 +56,7 @@ contract BattleTest is Test {
         battle.startBattle();
         vm.stopPrank();
         
-        assertEq(uint256(battle.getState()), uint256(Battle.BattleState.ACTIVE));
+        assertEq(uint256(battle.getState()), uint256(IBattle.BattleState.ACTIVE));
     }
 
     function testStartBattleNotEnoughAgents() public {
@@ -86,7 +87,7 @@ contract BattleTest is Test {
         vm.prank(arena);
         battle.resolveBattle();
         
-        assertEq(uint256(battle.getState()), uint256(Battle.BattleState.RESOLVED));
+        assertEq(uint256(battle.getState()), uint256(IBattle.BattleState.RESOLVED));
         assertEq(battle.getWinner(), address(agent2)); // Agent2 extracted more
         assertEq(battle.winningAmount(), 2 ether);
     }
@@ -133,7 +134,7 @@ contract BattleTest is Test {
         
         // Winner gets 70%
         assertEq(player2.balance - initialBalance, 7 ether);
-        assertEq(uint256(battle.getState()), uint256(Battle.BattleState.CLAIMED));
+        assertEq(uint256(battle.getState()), uint256(IBattle.BattleState.CLAIMED));
     }
 
     function testClaimPrizeNotWinner() public {
