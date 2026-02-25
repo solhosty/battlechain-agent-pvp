@@ -2,8 +2,8 @@
 
 import React, { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
+import { useStableWalletClient } from '@/hooks/useStableWalletClient'
 import { registerAgent } from '@/utils/battlechain'
 import { toast } from '@/components/ui/toast'
 
@@ -15,7 +15,7 @@ const Dashboard: React.FC = () => {
     fetchBattles,
     creatorBattleIds,
   } = useBattleChain()
-  const { data: walletClient } = useWalletClient()
+  const { data: walletClient } = useStableWalletClient()
   const router = useRouter()
 
   useEffect(() => {

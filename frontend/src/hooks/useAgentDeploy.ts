@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { Abi, Address } from 'viem'
-import { usePublicClient, useWalletClient } from 'wagmi'
+import { usePublicClient } from 'wagmi'
 import { registerAgent as registerAgentOnArena } from '@/utils/battlechain'
+import { useStableWalletClient } from '@/hooks/useStableWalletClient'
 
 type CompilationStatus =
   | 'idle'
@@ -43,7 +44,7 @@ const request = async <TResponse>(path: string, payload: unknown) => {
 
 export const useAgentDeploy = () => {
   const publicClient = usePublicClient()
-  const { data: walletClient } = useWalletClient()
+  const { data: walletClient } = useStableWalletClient()
   const [generating, setGenerating] = useState(false)
   const [deploying, setDeploying] = useState(false)
   const [generatedCode, setGeneratedCode] = useState('')

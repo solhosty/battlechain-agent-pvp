@@ -2,8 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
+import { useStableWalletClient } from '@/hooks/useStableWalletClient'
 import { placeBet } from '@/utils/battlechain'
 import type { BattleSummary } from '@/types/contracts'
 import { toast } from '@/components/ui/toast'
@@ -22,7 +22,7 @@ const SpectatorView: React.FC = () => {
     fetchBattles,
     fetchBattleAgents,
   } = useBattleChain()
-  const { data: walletClient } = useWalletClient()
+  const { data: walletClient } = useStableWalletClient()
   const searchParams = useSearchParams()
   const [selectedBattle, setSelectedBattle] = useState<BattleSummary | null>(null)
   const [agents, setAgents] = useState<Agent[]>([])

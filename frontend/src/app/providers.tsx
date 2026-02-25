@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useMemo } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConnectKitProvider } from 'connectkit'
 import { WagmiProvider } from 'wagmi'
@@ -45,10 +45,11 @@ class AppErrorBoundary extends React.Component<
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient())
+  const queryClient = useMemo(() => new QueryClient(), [])
+  const wagmiConfigMemo = useMemo(() => wagmiConfig, [])
 
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={wagmiConfigMemo}>
       <QueryClientProvider client={queryClient}>
         <ConnectKitProvider>
           <AppErrorBoundary>
