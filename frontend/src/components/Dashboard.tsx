@@ -145,11 +145,11 @@ const Dashboard: React.FC = () => {
     setIsMounted(true)
   }, [])
 
-  if (!isMounted) {
-    return <div className="py-10 text-gray-400">Loading dashboard...</div>
-  }
-
-  return <DashboardContent />
+  return isMounted ? (
+    <DashboardContent />
+  ) : (
+    <div className="py-10 text-gray-400">Loading dashboard...</div>
+  )
 }
 
 export default Dashboard
