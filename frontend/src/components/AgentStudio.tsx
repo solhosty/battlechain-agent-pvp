@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
-import { useAgentDeploy } from '../hooks/useAgentDeploy';
+import React, { useState } from 'react'
+import { ConnectKitButton } from 'connectkit'
+import type { Abi } from 'viem'
+import { useAccount } from 'wagmi'
+import { useAgentDeploy } from '../hooks/useAgentDeploy'
 
 const AgentStudio: React.FC = () => {
-  const [prompt, setPrompt] = useState('');
+  const { isConnected } = useAccount()
+  const [prompt, setPrompt] = useState('')
   const {
     generating,
     deploying,
@@ -12,24 +16,28 @@ const AgentStudio: React.FC = () => {
     generateAgent,
     compileAgent,
     deployAgent
-  } = useAgentDeploy();
+  } = useAgentDeploy()
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
-    await generateAgent(prompt);
-  };
+    if (!prompt.trim()) return
+    await generateAgent(prompt)
+  }
 
   const handleCompile = async () => {
-    if (!generatedCode) return;
+    if (!generatedCode) return
     // In production, send to compilation service
-    await compileAgent(generatedCode);
-  };
+    await compileAgent(generatedCode)
+  }
 
-  const handleDeploy = async () => {
-    if (compilationStatus !== 'compiled') return;
+  const handleDeploy = async (showConnect?: () => void) => {
+    if (!isConnected) {
+      showConnect?.()
+      return
+    }
+    if (compilationStatus !== 'compiled') return
     // In production, deploy compiled contract
-    await deployAgent('0x', []);
-  };
+    await deployAgent('0x', [] as Abi)
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -92,13 +100,21 @@ const AgentStudio: React.FC = () => {
             >
               {compilationStatus === 'compiling' ? 'Compiling...' : 'Compile'}
             </button>
-            <button
-              onClick={handleDeploy}
-              disabled={compilationStatus !== 'compiled' || deploying}
-              className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
-            >
-              {deploying ? 'Deploying...' : 'Deploy to BattleChain'}
-            </button>
+            <ConnectKitButton.Custom>
+              {({ show }) => (
+                <button
+                  onClick={() => handleDeploy(show)}
+                  disabled={compilationStatus !== 'compiled' || deploying}
+                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
+                >
+                  {deploying
+                    ? 'Deploying...'
+                    : isConnected
+                    ? 'Deploy to BattleChain'
+                    : 'Connect to Deploy'}
+                </button>
+              )}
+            </ConnectKitButton.Custom>
           </div>
 
           {deployedAddress && (
@@ -122,7 +138,7 @@ const AgentStudio: React.FC = () => {
         </ol>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AgentStudio;
+export default AgentStudio
