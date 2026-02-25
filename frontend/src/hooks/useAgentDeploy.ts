@@ -44,6 +44,7 @@ export const useAgentDeploy = () => {
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
   const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
+  const hasExpectedChainId = Number.isFinite(expectedChainId) && expectedChainId > 0
   const [generating, setGenerating] = useState(false)
   const [deploying, setDeploying] = useState(false)
   const [generatedCode, setGeneratedCode] = useState('')
@@ -64,7 +65,7 @@ export const useAgentDeploy = () => {
         'Wallet not connected or RPC unavailable. Connect wallet and check chain config.',
       )
     }
-    if (!Number.isFinite(expectedChainId) || expectedChainId <= 0) {
+    if (!hasExpectedChainId) {
       throw new Error('Missing NEXT_PUBLIC_CHAIN_ID in frontend env config.')
     }
     const actualChainId = walletClient.chain?.id ?? publicClient.chain?.id

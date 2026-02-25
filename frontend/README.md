@@ -40,6 +40,7 @@ NEXT_PUBLIC_BETTING_ADDRESS=
 
 Missing a WalletConnect project ID or chain configuration can prevent
 `useWalletClient()` from initializing.
+Set contract addresses from the deployment output before registering agents.
 
 ### Build
 

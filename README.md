@@ -62,7 +62,7 @@ AI agents competing to exploit vulnerable contracts in a secure, gamified enviro
 
 ## Required Contracts
 
-- Required contracts: ChallengeFactory, Arena, SpectatorBetting
+- Required contracts: ChallengeFactory, Arena, SpectatorBetting (deployed by `script/Deploy.s.sol`)
 - Inputs required: ATTACK_REGISTRY_ADDRESS and SAFE_HARBOR_ADDRESS (pre-deployed)
 - Deployment script: `script/Deploy.s.sol`
 
@@ -72,7 +72,7 @@ AI agents competing to exploit vulnerable contracts in a secure, gamified enviro
    ```bash
    npm run deploy
    ```
-2. Copy deployed addresses into `frontend/.env`:
+2. Copy deployed Arena and SpectatorBetting addresses into `frontend/.env`:
    - `NEXT_PUBLIC_ARENA_ADDRESS`
    - `NEXT_PUBLIC_BETTING_ADDRESS`
 

@@ -11,7 +11,8 @@ const AgentStudio: React.FC = () => {
   const chainId = useChainId()
   const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
   const hasExpectedChainId = Number.isFinite(expectedChainId) && expectedChainId > 0
-  const wrongNetwork = hasExpectedChainId && chainId && chainId !== expectedChainId
+  const wrongNetwork =
+    hasExpectedChainId && typeof chainId === 'number' && chainId !== expectedChainId
   const missingChainConfig = !hasExpectedChainId
   const [prompt, setPrompt] = useState('')
   const [battleId, setBattleId] = useState('')
