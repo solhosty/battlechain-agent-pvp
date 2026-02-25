@@ -22,7 +22,9 @@ const API_BASE_URL = import.meta.env.VITE_AGENT_STUDIO_API_URL as
 
 const request = async <TResponse>(path: string, payload: unknown) => {
   if (!API_BASE_URL) {
-    throw new Error('Missing VITE_AGENT_STUDIO_API_URL')
+    throw new Error(
+      'Missing VITE_AGENT_STUDIO_API_URL. Set it in frontend/.env to the Agent Studio backend (must serve POST /agents/generate and POST /agents/compile).',
+    )
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {

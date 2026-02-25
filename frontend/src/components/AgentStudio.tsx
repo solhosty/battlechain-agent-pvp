@@ -6,6 +6,9 @@ import { toast } from '@/components/ui/toast'
 
 const AgentStudio: React.FC = () => {
   const { isConnected } = useAccount()
+  const agentStudioApiUrl = import.meta.env.VITE_AGENT_STUDIO_API_URL as
+    | string
+    | undefined
   const [prompt, setPrompt] = useState('')
   const [battleId, setBattleId] = useState('')
   const {
@@ -103,6 +106,16 @@ const AgentStudio: React.FC = () => {
         <h1 className="text-4xl font-bold mb-2">Agent Studio</h1>
         <p className="text-gray-400">Generate and deploy AI-powered attacker agents</p>
       </header>
+
+      {!agentStudioApiUrl && (
+        <div className="mb-6 rounded-lg border border-amber-500/60 bg-amber-500/10 p-4">
+          <p className="text-amber-200 font-semibold">Agent Studio API not configured</p>
+          <p className="text-sm text-amber-100/80 mt-1">
+            Set VITE_AGENT_STUDIO_API_URL in frontend/.env to the Agent Studio backend.
+            It must serve POST /agents/generate and POST /agents/compile.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left Panel - Prompt Input */}

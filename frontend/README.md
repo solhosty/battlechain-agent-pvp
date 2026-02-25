@@ -19,6 +19,13 @@ The frontend provides:
 npm install
 ```
 
+### Environment
+
+Create `frontend/.env` (copy `frontend/.env.example`) and set:
+
+- `VITE_AGENT_STUDIO_API_URL`: base URL for the Agent Studio backend that serves
+  `POST /agents/generate` and `POST /agents/compile`.
+
 ### Development
 
 ```bash
