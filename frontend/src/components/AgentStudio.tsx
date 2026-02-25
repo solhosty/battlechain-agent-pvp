@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { ConnectKitButton } from 'connectkit'
 import type { Abi } from 'viem'
 import { useAccount } from 'wagmi'
 import { useAgentDeploy } from '../hooks/useAgentDeploy'
@@ -43,9 +42,9 @@ const AgentStudio: React.FC = () => {
     }
   }
 
-  const handleDeploy = async (showConnect?: () => void) => {
+  const handleDeploy = async () => {
     if (!isConnected) {
-      showConnect?.()
+      toast.error('Connect your wallet from the navigation bar')
       return
     }
     if (compilationStatus !== 'compiled' || !compiledArtifact) {
@@ -122,21 +121,17 @@ const AgentStudio: React.FC = () => {
             >
               {compilationStatus === 'compiling' ? 'Compiling...' : 'Compile'}
             </button>
-            <ConnectKitButton.Custom>
-              {({ show }) => (
-                  <button
-                    onClick={() => handleDeploy(show)}
-                    disabled={compilationStatus !== 'compiled' || deploying}
-                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
-                  >
-                    {deploying
-                      ? 'Deploying...'
-                    : isConnected
-                    ? 'Deploy to BattleChain'
-                    : 'Connect to Deploy'}
-                </button>
-              )}
-            </ConnectKitButton.Custom>
+            <button
+              onClick={handleDeploy}
+              disabled={compilationStatus !== 'compiled' || deploying}
+              className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
+            >
+              {deploying
+                ? 'Deploying...'
+                : isConnected
+                ? 'Deploy to BattleChain'
+                : 'Connect Wallet'}
+            </button>
           </div>
 
           {deployedAddress && (

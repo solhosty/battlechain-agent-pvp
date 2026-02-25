@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { ConnectKitButton } from 'connectkit'
 import { useSearchParams } from 'react-router-dom'
 import { useWalletClient } from 'wagmi'
 import { useBattleChain } from '../hooks/useBattleChain'
@@ -15,7 +14,6 @@ interface Agent {
 
 const SpectatorView: React.FC = () => {
   const {
-    account,
     isConnected,
     battles,
     loading,
@@ -133,21 +131,9 @@ const SpectatorView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
-      <header className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Spectator Arena</h1>
-          <p className="text-gray-400">Watch battles and place bets on your favorite agents</p>
-        </div>
-        <ConnectKitButton.Custom>
-          {({ show }) => (
-            <button
-              onClick={show}
-              className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold"
-            >
-              {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect Wallet'}
-            </button>
-          )}
-        </ConnectKitButton.Custom>
+      <header className="mb-8">
+        <h1 className="text-4xl font-bold mb-2">Spectator Arena</h1>
+        <p className="text-gray-400">Watch battles and place bets on your favorite agents</p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
