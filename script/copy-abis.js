@@ -5,6 +5,7 @@ const path = require('path');
 const contracts = ['Arena', 'Battle', 'SpectatorBetting', 'ChallengeFactory'];
 const outDir = path.join(__dirname, '..', 'out');
 const abiDir = path.join(__dirname, '..', 'frontend', 'src', 'abis');
+const frontendDir = path.join(__dirname, '..', 'frontend');
 
 console.log('Compiling contracts...');
 try {
@@ -34,3 +35,12 @@ for (const contract of contracts) {
 }
 
 console.log('All ABIs copied successfully.');
+
+console.log('Generating TypeChain types...');
+try {
+  execSync('npm run typechain', { stdio: 'inherit', cwd: frontendDir });
+  console.log('TypeChain generation completed.');
+} catch (error) {
+  console.error('Error: Failed to generate TypeChain types');
+  process.exit(1);
+}

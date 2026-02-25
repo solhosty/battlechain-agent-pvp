@@ -4,6 +4,8 @@ pragma solidity ^0.8.19;
 import "./interfaces/IBattle.sol";
 
 contract SpectatorBetting {
+    uint256 public constant ODDS_SCALE = 1e18;
+
     struct Bet {
         uint256 amount;
         bool claimed;
@@ -36,6 +38,8 @@ contract SpectatorBetting {
         uint256 payout
     );
     event BattleRegistered(uint256 indexed battleId, address[] agents);
+    event BetsResolved(uint256 indexed battleId, uint256 winningAgentIndex);
+    event Paused(bool paused);
 
     modifier onlyArena() {
         require(msg.sender == arena, "Only arena");
@@ -51,6 +55,7 @@ contract SpectatorBetting {
         arena = _arena;
     }
 
+    /// @notice Registers a battle and its agents for betting.
     function registerBattle(
         uint256 battleId,
         address[] calldata agents,
@@ -68,6 +73,7 @@ contract SpectatorBetting {
         emit BattleRegistered(battleId, agents);
     }
 
+    /// @notice Places a bet on a specific agent for a battle.
     function placeBet(uint256 battleId, uint256 agentIndex) external payable whenNotPaused {
         require(msg.value > 0, "Bet must be positive");
         require(battles[battleId].startTime > 0, "Battle not registered");
@@ -83,6 +89,7 @@ contract SpectatorBetting {
         emit BetPlaced(battleId, msg.sender, agentIndex, msg.value);
     }
 
+    /// @notice Marks a battle as resolved and sets the winning agent index.
     function resolveBets(uint256 battleId, uint256 winningAgentIndex) external onlyArena {
         require(battles[battleId].startTime > 0, "Battle not registered");
         require(!battles[battleId].resolved, "Already resolved");
@@ -90,8 +97,10 @@ contract SpectatorBetting {
 
         battles[battleId].resolved = true;
         battles[battleId].winningAgentIndex = winningAgentIndex;
+        emit BetsResolved(battleId, winningAgentIndex);
     }
 
+    /// @notice Calculates a payout for a given bet.
     function calculatePayout(
         uint256 battleId,
         uint256 agentIndex,
@@ -104,6 +113,7 @@ contract SpectatorBetting {
         return betAmount + ((betAmount * loserPool) / winningPool);
     }
 
+    /// @notice Claims payout for the winning agent bet.
     function claimPayout(uint256 battleId) external whenNotPaused {
         BattleInfo storage battle = battles[battleId];
         require(battle.resolved, "Battle not resolved");
@@ -123,17 +133,21 @@ contract SpectatorBetting {
         emit BetClaimed(battleId, msg.sender, payout);
     }
 
+    /// @notice Returns the current odds for an agent in a battle.
     function getOdds(uint256 battleId, uint256 agentIndex) external view returns (uint256) {
         uint256 agentPool = totalWageredPerAgent[battleId][agentIndex];
         if (agentPool == 0) return 0;
         
-        return (totalPool[battleId] * 1e18) / agentPool;
+        return (totalPool[battleId] * ODDS_SCALE) / agentPool;
     }
 
+    /// @notice Pauses or unpauses betting.
     function setPaused(bool _paused) external {
         require(msg.sender == arena, "Only arena");
         paused = _paused;
+        emit Paused(_paused);
     }
 
+    /// @notice Accepts direct ether transfers.
     receive() external payable {}
 }

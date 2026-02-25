@@ -111,8 +111,10 @@ contract BattleTest is Test {
         // Setup and resolve battle
         MockAgent agent1 = new MockAgent("Agent1", player1, true, 0);
         MockAgent agent2 = new MockAgent("Agent2", player2, true, 1 ether);
-        
+
+        vm.deal(arena, 10 ether);
         vm.startPrank(arena);
+        battle.fundPrizePool{value: 10 ether}();
         battle.registerAgent(address(agent1));
         battle.registerAgent(address(agent2));
         battle.startBattle();
@@ -122,9 +124,6 @@ contract BattleTest is Test {
         
         vm.prank(arena);
         battle.resolveBattle();
-        
-        // Fund battle contract
-        vm.deal(address(battle), 10 ether);
         
         uint256 initialBalance = player2.balance;
         

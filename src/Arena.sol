@@ -3,13 +3,17 @@ pragma solidity ^0.8.19;
 
 import "./Battle.sol";
 import "./interfaces/IAttackRegistry.sol";
-import "./interfaces/ISafeHarbor.sol";
-import "./challenges/BaseChallenge.sol";
+import "./interfaces/IChallengeFactory.sol";
 
 contract Arena {
+    uint8 public constant MIN_AGENTS = 2;
+    uint8 public constant MAX_AGENTS = 10;
+    uint256 public constant MIN_DURATION = 1 hours;
+    uint256 public constant MAX_DURATION = 7 days;
+
     address public immutable attackRegistry;
     address public immutable safeHarbor;
-    address public immutable challengeFactory;
+    IChallengeFactory public immutable challengeFactory;
     address public owner;
     bool public paused;
     
@@ -46,25 +50,21 @@ contract Arena {
         owner = msg.sender;
         attackRegistry = _attackRegistry;
         safeHarbor = _safeHarbor;
-        challengeFactory = _challengeFactory;
+        challengeFactory = IChallengeFactory(_challengeFactory);
     }
 
+    /// @notice Creates a battle and funds its prize pool from msg.value.
     function createBattle(
-        address challengeType,
+        IChallengeFactory.ChallengeType challengeType,
         uint256 entryFee,
         uint8 maxAgents,
         uint256 duration
     ) external payable whenNotPaused returns (uint256 battleId) {
         require(msg.value >= entryFee, "Insufficient entry fee");
-        require(maxAgents >= 2 && maxAgents <= 10, "Invalid agent count");
-        require(duration >= 1 hours && duration <= 7 days, "Invalid duration");
+        require(maxAgents >= MIN_AGENTS && maxAgents <= MAX_AGENTS, "Invalid agent count");
+        require(duration >= MIN_DURATION && duration <= MAX_DURATION, "Invalid duration");
 
-        // Deploy challenge instance
-        address challenge = IChallengeFactory(challengeFactory).deployChallenge(challengeType);
-        
-        // Fund the challenge with entry fee
-        (bool success, ) = payable(challenge).call{value: msg.value}("");
-        require(success, "Challenge funding failed");
+        address challenge = challengeFactory.deployChallenge(challengeType);
 
         // Request attack mode via AttackRegistry
         IAttackRegistry(attackRegistry).requestUnderAttack(challenge);
@@ -77,6 +77,8 @@ contract Arena {
             block.timestamp + duration,
             msg.sender
         );
+
+        newBattle.fundPrizePool{value: msg.value}();
         
         battles[battleId] = address(newBattle);
         creatorBattles[msg.sender].push(battleId);
@@ -84,24 +86,28 @@ contract Arena {
         emit BattleCreated(battleId, challenge, entryFee, maxAgents);
     }
 
+    /// @notice Registers an agent for a battle.
     function registerAgent(uint256 battleId, address agent) external whenNotPaused {
-        require(battles[battleId] != address(0), "Battle not found");
+        address battleAddress = battles[battleId];
+        require(battleAddress != address(0), "Battle not found");
         
-        address challenge = Battle(payable(battles[battleId])).getChallenge();
+        address challenge = Battle(payable(battleAddress)).getChallenge();
         require(
             IAttackRegistry(attackRegistry).isUnderAttack(challenge),
             "Challenge not in attack mode"
         );
 
-        Battle(payable(battles[battleId])).registerAgent(agent);
+        Battle(payable(battleAddress)).registerAgent(agent);
         
         emit AgentRegistered(battleId, agent);
     }
 
+    /// @notice Starts a battle once agents are registered.
     function startBattle(uint256 battleId) external whenNotPaused {
-        require(battles[battleId] != address(0), "Battle not found");
+        address battleAddress = battles[battleId];
+        require(battleAddress != address(0), "Battle not found");
         
-        Battle battle = Battle(payable(battles[battleId]));
+        Battle battle = Battle(payable(battleAddress));
         address challenge = battle.getChallenge();
         
         require(
@@ -114,33 +120,41 @@ contract Arena {
         emit BattleStarted(battleId);
     }
 
+    /// @notice Resolves a battle after its deadline.
     function resolveBattle(uint256 battleId) external whenNotPaused {
-        require(battles[battleId] != address(0), "Battle not found");
+        address battleAddress = battles[battleId];
+        require(battleAddress != address(0), "Battle not found");
         
-        Battle battle = Battle(payable(battles[battleId]));
+        Battle battle = Battle(payable(battleAddress));
         battle.resolveBattle();
         
         emit BattleResolved(battleId, battle.getWinner());
     }
 
+    /// @notice Claims a battle prize on behalf of the winner.
     function claimPrize(uint256 battleId) external {
-        require(battles[battleId] != address(0), "Battle not found");
-        Battle(payable(battles[battleId])).claimPrize();
+        address battleAddress = battles[battleId];
+        require(battleAddress != address(0), "Battle not found");
+        Battle(payable(battleAddress)).claimPrize();
     }
 
+    /// @notice Pauses or unpauses arena actions.
     function setPaused(bool _paused) external onlyOwner {
         paused = _paused;
         emit Paused(_paused);
     }
 
+    /// @notice Returns the battle address for an id.
     function getBattle(uint256 battleId) external view returns (address) {
         return battles[battleId];
     }
 
+    /// @notice Returns all battle ids created by a creator.
     function getCreatorBattles(address creator) external view returns (uint256[] memory) {
         return creatorBattles[creator];
     }
 
+    /// @notice Returns all battle ids in the arena.
     function getAllBattleIds() external view returns (uint256[] memory) {
         uint256[] memory ids = new uint256[](nextBattleId);
         for (uint256 i = 0; i < nextBattleId; i++) {
@@ -148,8 +162,4 @@ contract Arena {
         }
         return ids;
     }
-}
-
-interface IChallengeFactory {
-    function deployChallenge(address challengeType) external returns (address);
 }

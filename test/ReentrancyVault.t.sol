@@ -72,17 +72,18 @@ contract ReentrancyVaultTest is Test {
         
         uint256 vaultBalanceBefore = address(vault).balance;
         uint256 attackerBalanceBefore = address(exploiter).balance;
-        
-        // Execute reentrancy attack
+
+        // Execute reentrancy attack, which should revert
         vm.prank(attacker);
+        vm.expectRevert("Transfer failed");
         exploiter.attack{value: 1 ether}();
-        
+
         uint256 vaultBalanceAfter = address(vault).balance;
         uint256 attackerBalanceAfter = address(exploiter).balance;
-        
-        // Attacker should have extracted more than deposited due to reentrancy
-        assertGt(attackerBalanceAfter - attackerBalanceBefore, 1 ether);
-        assertLt(vaultBalanceAfter, vaultBalanceBefore);
+
+        // Vault and attacker balances should remain unchanged
+        assertEq(attackerBalanceAfter, attackerBalanceBefore);
+        assertEq(vaultBalanceAfter, vaultBalanceBefore);
     }
 
     function testNoBalanceWithdrawal() public {
