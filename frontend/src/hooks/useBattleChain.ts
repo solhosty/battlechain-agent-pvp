@@ -1,19 +1,28 @@
-import { useState, useEffect } from 'react';
-import { ethers } from 'ethers';
+import { useEffect, useState } from 'react';
+import { formatEther, ZeroAddress } from 'ethers';
 import { getArenaContract, getBattleContract, getProvider } from '../utils/battlechain';
+import type { BattleStateLabel, BattleSummary } from '../types/contracts';
+
+const battleStateLabels: BattleStateLabel[] = [
+  'Pending',
+  'Active',
+  'Executing',
+  'Resolved',
+  'Claimed',
+];
 
 export const useBattleChain = () => {
-  const [account, setAccount] = useState(null);
-  const [battles, setBattles] = useState([]);
+  const [account, setAccount] = useState<string | null>(null);
+  const [battles, setBattles] = useState<BattleSummary[]>([]);
   const [loading, setLoading] = useState(false);
 
   const connectWallet = async () => {
     if (window.ethereum) {
       try {
-        const accounts = await window.ethereum.request({
-          method: 'eth_requestAccounts'
-        });
-        setAccount(accounts[0]);
+        const accounts = (await window.ethereum.request({
+          method: 'eth_requestAccounts',
+        })) as string[];
+        setAccount(accounts[0] ?? null);
       } catch (error) {
         console.error('Failed to connect wallet:', error);
       }
@@ -24,15 +33,18 @@ export const useBattleChain = () => {
     setLoading(true);
     try {
       const provider = getProvider();
+      if (!provider) {
+        setBattles([]);
+        return;
+      }
       const arena = getArenaContract(provider);
       
       // Get battle count and fetch each battle
-      let battleIds;
+      let battleIds: bigint[] = [];
       try {
         battleIds = await arena.getAllBattleIds();
       } catch (error) {
         console.warn('getAllBattleIds not available, using fallback');
-        battleIds = [];
       }
       const battleData = await Promise.all(
         battleIds.map(async (id) => {
@@ -53,14 +65,15 @@ export const useBattleChain = () => {
             battle.getWinner()
           ]);
           
+          const stateIndex = Number(state);
           return {
-            id: id.toString(),
+            id,
             address: battleAddress,
-            state: ['Pending', 'Active', 'Executing', 'Resolved', 'Claimed'][state],
+            state: battleStateLabels[stateIndex] ?? 'Pending',
             challenge,
-            entryFee: ethers.utils.formatEther(entryFee),
-            deadline: new Date(deadline.toNumber() * 1000).toLocaleString(),
-            winner: winner === ethers.constants.AddressZero ? null : winner
+            entryFee: formatEther(entryFee),
+            deadline: new Date(Number(deadline) * 1000).toLocaleString(),
+            winner: winner === ZeroAddress ? null : winner,
           };
         })
       );
@@ -74,11 +87,13 @@ export const useBattleChain = () => {
   };
 
   useEffect(() => {
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts) => {
-        setAccount(accounts[0] || null);
-      });
-    }
+    if (!window.ethereum) return;
+    const ethereum = window.ethereum as {
+      on: (event: string, handler: (accounts: string[]) => void) => void;
+    };
+    ethereum.on('accountsChanged', (accounts) => {
+      setAccount(accounts[0] ?? null);
+    });
   }, []);
 
   return {

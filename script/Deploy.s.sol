@@ -5,6 +5,7 @@ import "forge-std/Script.sol";
 import "../src/Arena.sol";
 import "../src/ChallengeFactory.sol";
 import "../src/SpectatorBetting.sol";
+import "../src/interfaces/IChallengeFactory.sol";
 
 contract DeployScript is Script {
     function run() external {
@@ -19,8 +20,11 @@ contract DeployScript is Script {
         ChallengeFactory challengeFactory = new ChallengeFactory();
         console.log("ChallengeFactory deployed at:", address(challengeFactory));
         
-        // Authorize ReentrancyVault (address(1) is the type identifier)
-        challengeFactory.authorizeChallenge(address(1));
+        // Enable ReentrancyVault challenge type
+        challengeFactory.setChallengeTypeEnabled(
+            IChallengeFactory.ChallengeType.REENTRANCY_VAULT,
+            true
+        );
         
         // Deploy Arena
         Arena arena = new Arena(
@@ -29,6 +33,8 @@ contract DeployScript is Script {
             address(challengeFactory)
         );
         console.log("Arena deployed at:", address(arena));
+
+        challengeFactory.setAuthorizedCaller(address(arena), true);
         
         // Deploy SpectatorBetting
         SpectatorBetting betting = new SpectatorBetting(address(arena));
