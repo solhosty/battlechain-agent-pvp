@@ -20,8 +20,10 @@ export const AGENT_ABI = [
     outputs: [{ type: 'address' }],
   },
 ] as const
+const AGENT_REGISTERED_EVENT_SIGNATURE =
+  'event AgentRegistered(uint256 indexed battleId, address indexed agent)'
 export const AGENT_REGISTERED_EVENT = parseAbiItem(
-  'event AgentRegistered(uint256 indexed battleId, address indexed agent)',
+  AGENT_REGISTERED_EVENT_SIGNATURE,
 )
 
 const normalizeAgentAddress = (address: Address) =>
