@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
 import { registerAgent } from '@/utils/battlechain'
 import { toast } from '@/components/ui/toast'
 
-const Dashboard: React.FC = () => {
+const DashboardContent: React.FC = () => {
   const {
     isConnected,
     battles,
@@ -136,6 +136,20 @@ const Dashboard: React.FC = () => {
       </div>
     </div>
   )
+}
+
+const Dashboard: React.FC = () => {
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  if (!isMounted) {
+    return <div className="py-10 text-gray-400">Loading dashboard...</div>
+  }
+
+  return <DashboardContent />
 }
 
 export default Dashboard
