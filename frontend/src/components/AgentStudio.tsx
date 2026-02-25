@@ -139,6 +139,9 @@ const AgentStudio: React.FC = () => {
                 'bg-red-500'
               }`} />
               <span className="text-sm text-gray-400 capitalize">{compilationStatus}</span>
+              {compiledArtifact?.contractName && (
+                <span className="text-xs text-gray-500">{compiledArtifact.contractName}</span>
+              )}
             </div>
           </div>
           
@@ -173,21 +176,23 @@ const AgentStudio: React.FC = () => {
             </button>
           </div>
 
-          <div className="mt-4 space-y-3">
-            <input
-              value={battleId}
-              onChange={(e) => setBattleId(e.target.value)}
-              placeholder="Battle ID to register"
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-            />
-            <button
-              onClick={handleRegister}
-              disabled={!deployedAddress || registering}
-              className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
-            >
-              {registering ? 'Registering...' : 'Register Agent in Arena'}
-            </button>
-          </div>
+          {deployedAddress && (
+            <div className="mt-4 space-y-3">
+              <input
+                value={battleId}
+                onChange={(e) => setBattleId(e.target.value)}
+                placeholder="Battle ID to register"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              />
+              <button
+                onClick={handleRegister}
+                disabled={registering}
+                className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
+              >
+                {registering ? 'Registering...' : 'Register Agent in Arena'}
+              </button>
+            </div>
+          )}
 
           {deployedAddress && (
             <div className="mt-4 p-4 bg-green-900/50 border border-green-600 rounded-lg">
