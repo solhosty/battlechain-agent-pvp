@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import type { Abi } from 'viem'
+import type { Abi, Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
+import { registerAgent as registerAgentOnArena } from '../utils/battlechain'
 
 type CompilationStatus =
   | 'idle'
@@ -51,6 +52,10 @@ export const useAgentDeploy = () => {
   const [compiledArtifact, setCompiledArtifact] =
     useState<CompilationResult | null>(null)
   const [deployedAddress, setDeployedAddress] = useState<string | null>(null)
+  const [registering, setRegistering] = useState(false)
+  const [registrationHash, setRegistrationHash] = useState<
+    `0x${string}` | null
+  >(null)
   const [error, setError] = useState<string | null>(null)
 
   const generateAgent = async (prompt: string) => {
@@ -140,6 +145,36 @@ export const useAgentDeploy = () => {
     }
   }
 
+  const registerAgentForBattle = async (
+    battleId: bigint,
+    agentAddress: Address,
+  ) => {
+    setRegistering(true)
+    try {
+      setError(null)
+      if (!walletClient || !publicClient) {
+        throw new Error('Wallet not connected')
+      }
+
+      const hash = await registerAgentOnArena(
+        walletClient,
+        battleId,
+        agentAddress,
+      )
+      await publicClient.waitForTransactionReceipt({ hash })
+      setRegistrationHash(hash)
+
+      return hash
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Registration failed:', message)
+      setError(message)
+      return null
+    } finally {
+      setRegistering(false)
+    }
+  }
+
   return {
     generating,
     deploying,
@@ -147,9 +182,12 @@ export const useAgentDeploy = () => {
     compilationStatus,
     compiledArtifact,
     deployedAddress,
+    registering,
+    registrationHash,
     error,
     generateAgent,
     compileAgent,
     deployAgent,
+    registerAgentForBattle,
   }
 }
