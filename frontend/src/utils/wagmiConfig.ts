@@ -2,10 +2,10 @@ import { getDefaultConfig } from 'connectkit'
 import { defineChain } from 'viem'
 import { createConfig, http } from 'wagmi'
 
-const chainId = Number(import.meta.env.VITE_CHAIN_ID)
-const rpcUrl = import.meta.env.VITE_BATTLECHAIN_RPC_URL as string
+const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
+const rpcUrl = process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL as string
 const explorerUrl =
-  (import.meta.env.VITE_BATTLECHAIN_EXPLORER_URL as string | undefined) ??
+  (process.env.NEXT_PUBLIC_BATTLECHAIN_EXPLORER_URL as string | undefined) ??
   'https://testnet.battlechain.com'
 
 const battleChain = defineChain({
@@ -32,7 +32,8 @@ const battleChain = defineChain({
 export const wagmiConfig = createConfig(
   getDefaultConfig({
     appName: 'BattleChain Arena',
-    walletConnectProjectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
+    walletConnectProjectId:
+      process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID as string,
     chains: [battleChain],
     transports: {
       [battleChain.id]: http(rpcUrl),

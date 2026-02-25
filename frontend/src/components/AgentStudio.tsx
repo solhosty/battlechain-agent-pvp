@@ -1,7 +1,9 @@
+'use client'
+
 import React, { useState } from 'react'
 import type { Abi, Address } from 'viem'
 import { useAccount } from 'wagmi'
-import { useAgentDeploy } from '../hooks/useAgentDeploy'
+import { useAgentDeploy } from '@/hooks/useAgentDeploy'
 import { toast } from '@/components/ui/toast'
 
 const AgentStudio: React.FC = () => {

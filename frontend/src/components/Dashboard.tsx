@@ -1,8 +1,10 @@
+'use client'
+
 import React, { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useRouter } from 'next/navigation'
 import { useWalletClient } from 'wagmi'
-import { useBattleChain } from '../hooks/useBattleChain'
-import { registerAgent } from '../utils/battlechain'
+import { useBattleChain } from '@/hooks/useBattleChain'
+import { registerAgent } from '@/utils/battlechain'
 import { toast } from '@/components/ui/toast'
 
 const Dashboard: React.FC = () => {
@@ -14,7 +16,7 @@ const Dashboard: React.FC = () => {
     creatorBattleIds,
   } = useBattleChain()
   const { data: walletClient } = useWalletClient()
-  const navigate = useNavigate()
+  const router = useRouter()
 
   useEffect(() => {
     fetchBattles()
@@ -42,7 +44,7 @@ const Dashboard: React.FC = () => {
   }
 
   const handleViewDetails = (battleId: bigint) => {
-    navigate(`/spectate?battleId=${battleId.toString()}`)
+    router.push(`/spectate?battleId=${battleId.toString()}`)
   }
 
   return (

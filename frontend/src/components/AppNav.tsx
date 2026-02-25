@@ -1,6 +1,9 @@
+'use client'
+
 import { useState } from 'react'
 import { ConnectKitButton } from 'connectkit'
-import { NavLink } from 'react-router-dom'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useAccount } from 'wagmi'
 
 const navItems = [
@@ -12,8 +15,9 @@ const navItems = [
 const AppNav = () => {
   const { address } = useAccount()
   const [menuOpen, setMenuOpen] = useState(false)
+  const pathname = usePathname()
 
-  const linkClass = ({ isActive }: { isActive: boolean }) => {
+  const linkClass = (isActive: boolean) => {
     const base =
       'inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors '
     const active = 'bg-muted text-foreground'
@@ -26,18 +30,22 @@ const AppNav = () => {
     <nav className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <NavLink
-            to="/"
+          <Link
+            href="/"
             className="text-lg font-semibold text-foreground"
             onClick={() => setMenuOpen(false)}
           >
             BattleChain
-          </NavLink>
+          </Link>
           <div className="hidden items-center gap-1 md:flex">
             {navItems.map((item) => (
-              <NavLink key={item.to} to={item.to} className={linkClass}>
+              <Link
+                key={item.to}
+                href={item.to}
+                className={linkClass(pathname === item.to)}
+              >
                 {item.label}
-              </NavLink>
+              </Link>
             ))}
           </div>
         </div>
@@ -75,14 +83,14 @@ const AppNav = () => {
         <div className="border-t border-border bg-background px-4 pb-4 md:hidden">
           <div className="flex flex-col gap-2 pt-3">
             {navItems.map((item) => (
-              <NavLink
+              <Link
                 key={item.to}
-                to={item.to}
-                className={linkClass}
+                href={item.to}
+                className={linkClass(pathname === item.to)}
                 onClick={() => setMenuOpen(false)}
               >
                 {item.label}
-              </NavLink>
+              </Link>
             ))}
           </div>
           <div className="pt-4">
