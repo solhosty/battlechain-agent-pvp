@@ -2,12 +2,17 @@
 
 import React, { useState } from 'react'
 import type { Abi, Address } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAccount, useChainId } from 'wagmi'
 import { useAgentDeploy } from '@/hooks/useAgentDeploy'
 import { toast } from '@/components/ui/toast'
 
 const AgentStudio: React.FC = () => {
   const { isConnected } = useAccount()
+  const chainId = useChainId()
+  const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
+  const hasExpectedChainId = Number.isFinite(expectedChainId) && expectedChainId > 0
+  const wrongNetwork = hasExpectedChainId && chainId && chainId !== expectedChainId
+  const missingChainConfig = !hasExpectedChainId
   const [prompt, setPrompt] = useState('')
   const [battleId, setBattleId] = useState('')
   const {
@@ -53,6 +58,14 @@ const AgentStudio: React.FC = () => {
       toast.error('Connect your wallet from the navigation bar')
       return
     }
+    if (missingChainConfig) {
+      toast.error('Missing NEXT_PUBLIC_CHAIN_ID in frontend env config')
+      return
+    }
+    if (wrongNetwork) {
+      toast.error(`Wrong network. Switch to chain ${expectedChainId}.`)
+      return
+    }
     if (compilationStatus !== 'compiled' || !compiledArtifact) {
       toast.error('Compile your agent before deploying')
       return
@@ -69,6 +82,14 @@ const AgentStudio: React.FC = () => {
   const handleRegister = async () => {
     if (!isConnected) {
       toast.error('Connect your wallet from the navigation bar')
+      return
+    }
+    if (missingChainConfig) {
+      toast.error('Missing NEXT_PUBLIC_CHAIN_ID in frontend env config')
+      return
+    }
+    if (wrongNetwork) {
+      toast.error(`Wrong network. Switch to chain ${expectedChainId}.`)
       return
     }
     if (!deployedAddress) {
@@ -155,6 +176,25 @@ const AgentStudio: React.FC = () => {
             )}
           </div>
 
+          <div className="mt-4 space-y-2 text-sm">
+            {missingChainConfig && (
+              <div className="rounded-lg border border-yellow-600 bg-yellow-900/40 p-3 text-yellow-200">
+                Missing <code className="font-mono">NEXT_PUBLIC_CHAIN_ID</code> in{' '}
+                <code className="font-mono">frontend/.env</code>.
+              </div>
+            )}
+            {wrongNetwork && (
+              <div className="rounded-lg border border-red-600 bg-red-900/40 p-3 text-red-200">
+                Switch to chain {expectedChainId} to deploy or register.
+              </div>
+            )}
+            <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-3 text-gray-300">
+              Set <code className="font-mono">NEXT_PUBLIC_ARENA_ADDRESS</code> and{' '}
+              <code className="font-mono">NEXT_PUBLIC_BETTING_ADDRESS</code> in{' '}
+              <code className="font-mono">frontend/.env</code> before registering.
+            </div>
+          </div>
+
           <div className="mt-4 flex gap-4">
             <button
               onClick={handleCompile}
@@ -165,7 +205,7 @@ const AgentStudio: React.FC = () => {
             </button>
             <button
               onClick={handleDeploy}
-              disabled={compilationStatus !== 'compiled' || deploying}
+              disabled={compilationStatus !== 'compiled' || deploying || wrongNetwork || missingChainConfig}
               className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
             >
               {deploying
@@ -186,7 +226,7 @@ const AgentStudio: React.FC = () => {
               />
               <button
                 onClick={handleRegister}
-                disabled={registering}
+                disabled={registering || wrongNetwork || missingChainConfig}
                 className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
               >
                 {registering ? 'Registering...' : 'Register Agent in Arena'}
