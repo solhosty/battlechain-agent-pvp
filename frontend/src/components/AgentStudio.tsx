@@ -3,6 +3,7 @@ import { ConnectKitButton } from 'connectkit'
 import type { Abi } from 'viem'
 import { useAccount } from 'wagmi'
 import { useAgentDeploy } from '../hooks/useAgentDeploy'
+import { toast } from '@/components/ui/toast'
 
 const AgentStudio: React.FC = () => {
   const { isConnected } = useAccount()
@@ -12,21 +13,34 @@ const AgentStudio: React.FC = () => {
     deploying,
     generatedCode,
     compilationStatus,
+    compiledArtifact,
     deployedAddress,
+    error,
     generateAgent,
     compileAgent,
     deployAgent
   } = useAgentDeploy()
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return
-    await generateAgent(prompt)
+    if (!prompt.trim()) {
+      toast.error('Enter a prompt to generate an agent')
+      return
+    }
+    const code = await generateAgent(prompt)
+    if (code) {
+      toast.success('Agent generated')
+    }
   }
 
   const handleCompile = async () => {
-    if (!generatedCode) return
-    // In production, send to compilation service
-    await compileAgent(generatedCode)
+    if (!generatedCode) {
+      toast.error('Generate an agent before compiling')
+      return
+    }
+    const result = await compileAgent(generatedCode)
+    if (result) {
+      toast.success('Compilation succeeded')
+    }
   }
 
   const handleDeploy = async (showConnect?: () => void) => {
@@ -34,9 +48,17 @@ const AgentStudio: React.FC = () => {
       showConnect?.()
       return
     }
-    if (compilationStatus !== 'compiled') return
-    // In production, deploy compiled contract
-    await deployAgent('0x', [] as Abi)
+    if (compilationStatus !== 'compiled' || !compiledArtifact) {
+      toast.error('Compile your agent before deploying')
+      return
+    }
+    const address = await deployAgent(
+      compiledArtifact.bytecode,
+      compiledArtifact.abi as Abi,
+    )
+    if (address) {
+      toast.success(`Agent deployed: ${address}`)
+    }
   }
 
   return (
@@ -102,13 +124,13 @@ const AgentStudio: React.FC = () => {
             </button>
             <ConnectKitButton.Custom>
               {({ show }) => (
-                <button
-                  onClick={() => handleDeploy(show)}
-                  disabled={compilationStatus !== 'compiled' || deploying}
-                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
-                >
-                  {deploying
-                    ? 'Deploying...'
+                  <button
+                    onClick={() => handleDeploy(show)}
+                    disabled={compilationStatus !== 'compiled' || deploying}
+                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
+                  >
+                    {deploying
+                      ? 'Deploying...'
                     : isConnected
                     ? 'Deploy to BattleChain'
                     : 'Connect to Deploy'}
@@ -121,6 +143,12 @@ const AgentStudio: React.FC = () => {
             <div className="mt-4 p-4 bg-green-900/50 border border-green-600 rounded-lg">
               <p className="text-green-400 font-semibold">Agent Deployed!</p>
               <p className="text-sm text-gray-400 mt-1">Address: {deployedAddress}</p>
+            </div>
+          )}
+          {error && (
+            <div className="mt-4 p-4 bg-red-900/50 border border-red-600 rounded-lg">
+              <p className="text-red-400 font-semibold">Action failed</p>
+              <p className="text-sm text-gray-400 mt-1">{error}</p>
             </div>
           )}
         </div>

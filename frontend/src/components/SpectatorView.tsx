@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { ConnectKitButton } from 'connectkit'
+import { useSearchParams } from 'react-router-dom'
 import { useWalletClient } from 'wagmi'
 import { useBattleChain } from '../hooks/useBattleChain'
 import { placeBet } from '../utils/battlechain'
 import type { BattleSummary } from '../types/contracts'
+import { toast } from '@/components/ui/toast'
 
 interface Agent {
   address: string;
@@ -12,34 +14,72 @@ interface Agent {
 }
 
 const SpectatorView: React.FC = () => {
-  const { account, isConnected, battles, loading } = useBattleChain()
+  const {
+    account,
+    isConnected,
+    battles,
+    loading,
+    fetchBattles,
+    fetchBattleAgents,
+  } = useBattleChain()
   const { data: walletClient } = useWalletClient()
+  const [searchParams] = useSearchParams()
   const [selectedBattle, setSelectedBattle] = useState<BattleSummary | null>(null)
   const [agents, setAgents] = useState<Agent[]>([])
+  const [agentsLoading, setAgentsLoading] = useState(false)
   const [betAmount, setBetAmount] = useState('')
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null)
   const [betting, setBetting] = useState(false)
 
   useEffect(() => {
+    fetchBattles()
+  }, [fetchBattles])
+
+  useEffect(() => {
+    const battleIdParam = searchParams.get('battleId')
+    if (!battleIdParam) {
+      return
+    }
+
+    const match = battles.find(
+      (battle) => battle.id.toString() === battleIdParam,
+    )
+    if (match && match.id !== selectedBattle?.id) {
+      setSelectedBattle(match)
+    }
+  }, [battles, searchParams, selectedBattle])
+
+  useEffect(() => {
     if (selectedBattle) {
       // Fetch agents for selected battle
-      fetchAgents(selectedBattle.id)
+      fetchAgents(selectedBattle.address as `0x${string}`)
+      setSelectedAgent(null)
     }
   }, [selectedBattle])
 
-  const fetchAgents = async (_battleId: bigint) => {
-    // In production, fetch from contract
-    // Mock data for now
-    setAgents([
-      { address: '0x...', name: 'Agent 1', index: 0 },
-      { address: '0x...', name: 'Agent 2', index: 1 },
-    ])
+  const fetchAgents = async (battleAddress: `0x${string}`) => {
+    setAgentsLoading(true)
+    try {
+      const battleAgents = await fetchBattleAgents(battleAddress)
+      const summaries = battleAgents.map((address, index) => ({
+        address,
+        name: `Agent ${index + 1}`,
+        index,
+      }))
+      setAgents(summaries)
+    } catch (error) {
+      console.error('Failed to load agents:', error)
+      setAgents([])
+      toast.error('Failed to load agents')
+    } finally {
+      setAgentsLoading(false)
+    }
   }
 
   const handlePlaceBet = async () => {
     if (!selectedBattle || selectedAgent === null || !betAmount) return
     if (!walletClient) {
-      alert('Connect your wallet to place a bet')
+      toast.error('Connect your wallet to place a bet')
       return
     }
 
@@ -51,14 +91,45 @@ const SpectatorView: React.FC = () => {
         BigInt(selectedAgent),
         parseFloat(betAmount),
       )
-      alert('Bet placed successfully!')
+      toast.success('Bet placed successfully')
     } catch (error) {
       console.error('Failed to place bet:', error)
-      alert('Failed to place bet')
+      toast.error('Failed to place bet')
     } finally {
       setBetting(false)
     }
   }
+
+  const leaderboard = useMemo(() => {
+    const resolvedBattles = battles.filter((battle) => battle.winner)
+    const totalResolved = resolvedBattles.length
+    const stats = new Map<string, { wins: number; totalExtracted: number }>()
+
+    resolvedBattles.forEach((battle) => {
+      if (!battle.winner) {
+        return
+      }
+      const entryFee = Number(battle.entryFee)
+      const current = stats.get(battle.winner) ?? { wins: 0, totalExtracted: 0 }
+      stats.set(battle.winner, {
+        wins: current.wins + 1,
+        totalExtracted:
+          current.totalExtracted + (Number.isNaN(entryFee) ? 0 : entryFee),
+      })
+    })
+
+    const rows = Array.from(stats.entries())
+      .map(([address, data]) => ({
+        address,
+        wins: data.wins,
+        totalExtracted: data.totalExtracted,
+        winRate: totalResolved ? (data.wins / totalResolved) * 100 : 0,
+      }))
+      .sort((a, b) => b.wins - a.wins)
+      .slice(0, 5)
+
+    return { rows, totalResolved }
+  }, [battles])
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -86,6 +157,8 @@ const SpectatorView: React.FC = () => {
           
           {loading ? (
             <div className="text-center text-gray-400 py-8">Loading battles...</div>
+          ) : battles.filter(b => b.state === 'Active').length === 0 ? (
+            <div className="text-center text-gray-400 py-8">No active battles</div>
           ) : (
             <div className="grid gap-4">
               {battles.filter(b => b.state === 'Active').map((battle) => (
@@ -133,20 +206,28 @@ const SpectatorView: React.FC = () => {
               <div className="mb-4">
                 <p className="text-gray-400 text-sm mb-2">Select Agent</p>
                 <div className="space-y-2">
-                  {agents.map((agent) => (
-                    <button
-                      key={agent.index}
-                      onClick={() => setSelectedAgent(agent.index)}
-                      className={`w-full p-3 rounded-lg text-left transition ${
-                        selectedAgent === agent.index
-                          ? 'bg-blue-600'
-                          : 'bg-gray-700 hover:bg-gray-600'
-                      }`}
-                    >
-                      <p className="font-medium">{agent.name}</p>
-                      <p className="text-sm text-gray-400">{agent.address.slice(0, 10)}...</p>
-                    </button>
-                  ))}
+                  {agentsLoading ? (
+                    <div className="text-sm text-gray-400">Loading agents...</div>
+                  ) : agents.length === 0 ? (
+                    <div className="text-sm text-gray-400">No agents registered</div>
+                  ) : (
+                    agents.map((agent) => (
+                      <button
+                        key={agent.index}
+                        onClick={() => setSelectedAgent(agent.index)}
+                        className={`w-full p-3 rounded-lg text-left transition ${
+                          selectedAgent === agent.index
+                            ? 'bg-blue-600'
+                            : 'bg-gray-700 hover:bg-gray-600'
+                        }`}
+                      >
+                        <p className="font-medium">{agent.name}</p>
+                        <p className="text-sm text-gray-400">
+                          {agent.address.slice(0, 10)}...
+                        </p>
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -191,40 +272,40 @@ const SpectatorView: React.FC = () => {
       <div className="mt-8 bg-gray-800 p-6 rounded-lg">
         <h2 className="text-2xl font-bold mb-4">Top Performing Agents</h2>
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left border-b border-gray-700">
-                <th className="pb-3 text-gray-400 font-medium">Rank</th>
-                <th className="pb-3 text-gray-400 font-medium">Agent</th>
-                <th className="pb-3 text-gray-400 font-medium">Wins</th>
-                <th className="pb-3 text-gray-400 font-medium">Total Extracted</th>
-                <th className="pb-3 text-gray-400 font-medium">Win Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-gray-700">
-                <td className="py-4 font-bold text-yellow-400">#1</td>
-                <td className="py-4">ReentrancyMaster</td>
-                <td className="py-4">12</td>
-                <td className="py-4">45.5 ETH</td>
-                <td className="py-4 text-green-400">85%</td>
-              </tr>
-              <tr className="border-b border-gray-700">
-                <td className="py-4 font-bold text-gray-400">#2</td>
-                <td className="py-4">FlashLoanHunter</td>
-                <td className="py-4">8</td>
-                <td className="py-4">32.1 ETH</td>
-                <td className="py-4 text-green-400">72%</td>
-              </tr>
-              <tr>
-                <td className="py-4 font-bold text-orange-400">#3</td>
-                <td className="py-4">OverflowAttacker</td>
-                <td className="py-4">6</td>
-                <td className="py-4">18.9 ETH</td>
-                <td className="py-4 text-yellow-400">60%</td>
-              </tr>
-            </tbody>
-          </table>
+          {leaderboard.rows.length === 0 ? (
+            <div className="text-sm text-gray-400 py-6">
+              No resolved battles yet
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="text-left border-b border-gray-700">
+                  <th className="pb-3 text-gray-400 font-medium">Rank</th>
+                  <th className="pb-3 text-gray-400 font-medium">Agent</th>
+                  <th className="pb-3 text-gray-400 font-medium">Wins</th>
+                  <th className="pb-3 text-gray-400 font-medium">Total Extracted</th>
+                  <th className="pb-3 text-gray-400 font-medium">Win Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.rows.map((row, index) => (
+                  <tr key={row.address} className="border-b border-gray-700">
+                    <td className="py-4 font-bold text-yellow-400">
+                      #{index + 1}
+                    </td>
+                    <td className="py-4">
+                      {row.address.slice(0, 10)}...
+                    </td>
+                    <td className="py-4">{row.wins}</td>
+                    <td className="py-4">{row.totalExtracted.toFixed(2)} ETH</td>
+                    <td className="py-4 text-green-400">
+                      {row.winRate.toFixed(0)}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

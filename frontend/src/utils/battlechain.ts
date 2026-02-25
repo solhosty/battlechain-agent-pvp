@@ -22,6 +22,16 @@ export const getBattleAddress = async (
     args: [battleId],
   })
 
+export const getBattleAgents = async (
+  client: PublicClient,
+  battleAddress: Address,
+) =>
+  client.readContract({
+    address: battleAddress,
+    abi: BATTLE_ABI,
+    functionName: 'getAgents',
+  })
+
 export const createBattle = async (
   client: WalletClient,
   challengeType: ChallengeType,

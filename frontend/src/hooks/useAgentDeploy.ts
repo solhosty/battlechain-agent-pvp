@@ -2,37 +2,43 @@ import { useState } from 'react'
 import type { Abi } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 
-const AGENT_TEMPLATE = `// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+type CompilationStatus =
+  | 'idle'
+  | 'generated'
+  | 'compiling'
+  | 'compiled'
+  | 'deployed'
+  | 'error'
 
-import "./interfaces/IAgent.sol";
+interface CompilationResult {
+  abi: Abi
+  bytecode: `0x${string}`
+}
 
-contract {AGENT_NAME} is IAgent {
-    address public owner;
-    string public name;
+const API_BASE_URL = import.meta.env.VITE_AGENT_STUDIO_API_URL as
+  | string
+  | undefined
 
-    constructor() {
-        owner = msg.sender;
-        name = "{AGENT_NAME}";
-    }
+const request = async <TResponse>(path: string, payload: unknown) => {
+  if (!API_BASE_URL) {
+    throw new Error('Missing VITE_AGENT_STUDIO_API_URL')
+  }
 
-    function attack(address target) external override {
-        // Implement your attack strategy here
-        // Example: Reentrancy attack
-        
-        // 1. Deposit to target
-        // 2. Trigger withdrawal
-        // 3. Reenter in receive() function
-    }
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
 
-    function getName() external view override returns (string memory) {
-        return name;
-    }
+  if (!response.ok) {
+    const message = await response.text()
+    throw new Error(message || `Request failed (${response.status})`)
+  }
 
-    receive() external payable {
-        // Reentrancy logic here
-    }
-}`;
+  return (await response.json()) as TResponse
+}
 
 export const useAgentDeploy = () => {
   const publicClient = usePublicClient()
@@ -40,23 +46,36 @@ export const useAgentDeploy = () => {
   const [generating, setGenerating] = useState(false)
   const [deploying, setDeploying] = useState(false)
   const [generatedCode, setGeneratedCode] = useState('')
-  const [compilationStatus, setCompilationStatus] = useState('idle')
+  const [compilationStatus, setCompilationStatus] =
+    useState<CompilationStatus>('idle')
+  const [compiledArtifact, setCompiledArtifact] =
+    useState<CompilationResult | null>(null)
   const [deployedAddress, setDeployedAddress] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const generateAgent = async (prompt: string) => {
     setGenerating(true)
     try {
-      // In production, this would call an AI service
-      // For now, we'll use a template-based approach
-      const agentName = 'ReentrancyAttacker_' + Date.now()
-      const code = AGENT_TEMPLATE.replace(/{AGENT_NAME}/g, agentName)
-
+      setError(null)
+      const response = await request<{ code?: string; source?: string }>(
+        '/agents/generate',
+        {
+          prompt,
+        },
+      )
+      const code = response.code ?? response.source
+      if (!code) {
+        throw new Error('Generation API returned no code')
+      }
       setGeneratedCode(code)
       setCompilationStatus('generated')
+      setCompiledArtifact(null)
 
       return code
     } catch (error) {
-      console.error('Failed to generate agent:', error)
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Failed to generate agent:', message)
+      setError(message)
       setCompilationStatus('error')
     } finally {
       setGenerating(false)
@@ -66,22 +85,32 @@ export const useAgentDeploy = () => {
   const compileAgent = async (code: string) => {
     setCompilationStatus('compiling')
     try {
-      // In production, this would compile via API
-      // For demo purposes, simulate compilation
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
+      setError(null)
+      const response = await request<CompilationResult>(
+        '/agents/compile',
+        {
+          code,
+        },
+      )
+      if (!response.abi || !response.bytecode) {
+        throw new Error('Compilation API returned incomplete artifacts')
+      }
+      setCompiledArtifact({ abi: response.abi, bytecode: response.bytecode })
       setCompilationStatus('compiled')
-      return true
+      return response
     } catch (error) {
-      console.error('Compilation failed:', error)
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Compilation failed:', message)
+      setError(message)
       setCompilationStatus('error')
-      return false
+      return null
     }
   }
 
   const deployAgent = async (bytecode: `0x${string}`, abi: Abi) => {
     setDeploying(true)
     try {
+      setError(null)
       if (!walletClient || !publicClient) {
         throw new Error('Wallet not connected')
       }
@@ -101,7 +130,9 @@ export const useAgentDeploy = () => {
 
       return receipt.contractAddress
     } catch (error) {
-      console.error('Deployment failed:', error)
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Deployment failed:', message)
+      setError(message)
       setCompilationStatus('error')
       return null
     } finally {
@@ -114,7 +145,9 @@ export const useAgentDeploy = () => {
     deploying,
     generatedCode,
     compilationStatus,
+    compiledArtifact,
     deployedAddress,
+    error,
     generateAgent,
     compileAgent,
     deployAgent,
