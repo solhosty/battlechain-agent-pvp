@@ -19,7 +19,7 @@
     "test": "forge test -vvv",
     "test:gas": "forge test --gas-report",
     "deploy": "forge script script/Deploy.s.sol --rpc-url $BATTLECHAIN_RPC_URL --broadcast --verify",
-    "deploy:battlechain:estimate": "forge script script/Deploy.s.sol --fork-url $BATTLECHAIN_RPC_URL --estimate-gas",
+    "deploy:battlechain:estimate": "forge script script/Deploy.s.sol --fork-url $BATTLECHAIN_RPC_URL --gas-estimate-multiplier 130",
     "deploy:local": "forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast",
     "lint": "forge fmt --check && cd frontend && npm run lint",
     "lint:fix": "forge fmt && cd frontend && npm run format",
