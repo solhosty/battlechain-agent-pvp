@@ -3,9 +3,21 @@
     {
       "type": "constructor",
       "inputs": [
-        { "name": "_attackRegistry", "type": "address", "internalType": "address" },
-        { "name": "_safeHarbor", "type": "address", "internalType": "address" },
-        { "name": "_challengeFactory", "type": "address", "internalType": "address" }
+        {
+          "name": "_attackRegistry",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_safeHarbor",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "_challengeFactory",
+          "type": "address",
+          "internalType": "address"
+        }
       ],
       "stateMutability": "nonpayable"
     },
@@ -13,55 +25,109 @@
       "type": "function",
       "name": "MAX_AGENTS",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "uint8", "internalType": "uint8" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint8",
+          "internalType": "uint8"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "MAX_DURATION",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "MIN_AGENTS",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "uint8", "internalType": "uint8" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint8",
+          "internalType": "uint8"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "MIN_DURATION",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "attackRegistry",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "battles",
-      "inputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-      "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+      "inputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "challengeFactory",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "address", "internalType": "contract IChallengeFactory" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "contract IChallengeFactory"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "claimPrize",
-      "inputs": [{ "name": "battleId", "type": "uint256", "internalType": "uint256" }],
+      "inputs": [
+        {
+          "name": "battleId",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
       "outputs": [],
       "stateMutability": "nonpayable"
     },
@@ -69,72 +135,164 @@
       "type": "function",
       "name": "createBattle",
       "inputs": [
-        { "name": "challengeType", "type": "uint8", "internalType": "enum IChallengeFactory.ChallengeType" },
-        { "name": "entryFee", "type": "uint256", "internalType": "uint256" },
-        { "name": "maxAgents", "type": "uint8", "internalType": "uint8" },
-        { "name": "duration", "type": "uint256", "internalType": "uint256" }
+        {
+          "name": "challengeType",
+          "type": "uint8",
+          "internalType": "enum IChallengeFactory.ChallengeType"
+        },
+        {
+          "name": "entryFee",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "maxAgents",
+          "type": "uint8",
+          "internalType": "uint8"
+        },
+        {
+          "name": "duration",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
       ],
-      "outputs": [{ "name": "battleId", "type": "uint256", "internalType": "uint256" }],
+      "outputs": [
+        {
+          "name": "battleId",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
       "stateMutability": "payable"
     },
     {
       "type": "function",
       "name": "creatorBattles",
       "inputs": [
-        { "name": "", "type": "address", "internalType": "address" },
-        { "name": "", "type": "uint256", "internalType": "uint256" }
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
       ],
-      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "getAllBattleIds",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "uint256[]", "internalType": "uint256[]" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256[]",
+          "internalType": "uint256[]"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "getBattle",
-      "inputs": [{ "name": "battleId", "type": "uint256", "internalType": "uint256" }],
-      "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+      "inputs": [
+        {
+          "name": "battleId",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "getCreatorBattles",
-      "inputs": [{ "name": "creator", "type": "address", "internalType": "address" }],
-      "outputs": [{ "name": "", "type": "uint256[]", "internalType": "uint256[]" }],
+      "inputs": [
+        {
+          "name": "creator",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256[]",
+          "internalType": "uint256[]"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "nextBattleId",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "owner",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "paused",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "registerAgent",
       "inputs": [
-        { "name": "battleId", "type": "uint256", "internalType": "uint256" },
-        { "name": "agent", "type": "address", "internalType": "address" }
+        {
+          "name": "battleId",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "agent",
+          "type": "address",
+          "internalType": "address"
+        }
       ],
       "outputs": [],
       "stateMutability": "nonpayable"
@@ -142,7 +300,13 @@
     {
       "type": "function",
       "name": "resolveBattle",
-      "inputs": [{ "name": "battleId", "type": "uint256", "internalType": "uint256" }],
+      "inputs": [
+        {
+          "name": "battleId",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
       "outputs": [],
       "stateMutability": "nonpayable"
     },
@@ -150,20 +314,38 @@
       "type": "function",
       "name": "safeHarbor",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
       "stateMutability": "view"
     },
     {
       "type": "function",
       "name": "setPaused",
-      "inputs": [{ "name": "_paused", "type": "bool", "internalType": "bool" }],
+      "inputs": [
+        {
+          "name": "_paused",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
       "outputs": [],
       "stateMutability": "nonpayable"
     },
     {
       "type": "function",
       "name": "startBattle",
-      "inputs": [{ "name": "battleId", "type": "uint256", "internalType": "uint256" }],
+      "inputs": [
+        {
+          "name": "battleId",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
       "outputs": [],
       "stateMutability": "nonpayable"
     },
@@ -171,8 +353,18 @@
       "type": "event",
       "name": "AgentRegistered",
       "inputs": [
-        { "name": "battleId", "type": "uint256", "indexed": true, "internalType": "uint256" },
-        { "name": "agent", "type": "address", "indexed": true, "internalType": "address" }
+        {
+          "name": "battleId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "agent",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        }
       ],
       "anonymous": false
     },
@@ -180,10 +372,30 @@
       "type": "event",
       "name": "BattleCreated",
       "inputs": [
-        { "name": "battleId", "type": "uint256", "indexed": true, "internalType": "uint256" },
-        { "name": "challenge", "type": "address", "indexed": true, "internalType": "address" },
-        { "name": "entryFee", "type": "uint256", "indexed": false, "internalType": "uint256" },
-        { "name": "maxAgents", "type": "uint8", "indexed": false, "internalType": "uint8" }
+        {
+          "name": "battleId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "challenge",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "entryFee",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "maxAgents",
+          "type": "uint8",
+          "indexed": false,
+          "internalType": "uint8"
+        }
       ],
       "anonymous": false
     },
@@ -191,8 +403,18 @@
       "type": "event",
       "name": "BattleResolved",
       "inputs": [
-        { "name": "battleId", "type": "uint256", "indexed": true, "internalType": "uint256" },
-        { "name": "winner", "type": "address", "indexed": true, "internalType": "address" }
+        {
+          "name": "battleId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "winner",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        }
       ],
       "anonymous": false
     },
@@ -200,14 +422,26 @@
       "type": "event",
       "name": "BattleStarted",
       "inputs": [
-        { "name": "battleId", "type": "uint256", "indexed": true, "internalType": "uint256" }
+        {
+          "name": "battleId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        }
       ],
       "anonymous": false
     },
     {
       "type": "event",
       "name": "Paused",
-      "inputs": [{ "name": "paused", "type": "bool", "indexed": false, "internalType": "bool" }],
+      "inputs": [
+        {
+          "name": "paused",
+          "type": "bool",
+          "indexed": false,
+          "internalType": "bool"
+        }
+      ],
       "anonymous": false
     }
   ]
