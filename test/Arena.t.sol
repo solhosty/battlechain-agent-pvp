@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "../src/Arena.sol";
 import "../src/Battle.sol";
 import "../src/interfaces/IBattle.sol";
+import "../src/ChallengeFactory.sol";
 import "../src/challenges/ReentrancyVault.sol";
 import "./mocks/MockAgent.sol";
 import "./mocks/MockAttackRegistry.sol";
