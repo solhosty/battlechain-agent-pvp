@@ -14,18 +14,25 @@ type CompilationStatus =
 interface CompilationResult {
   abi: Abi
   bytecode: `0x${string}`
+  contractName?: string
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_AGENT_STUDIO_API_URL as
   | string
   | undefined
 
-const request = async <TResponse>(path: string, payload: unknown) => {
-  if (!API_BASE_URL) {
-    throw new Error('Missing NEXT_PUBLIC_AGENT_STUDIO_API_URL')
+const buildUrl = (path: string) => {
+  const base = API_BASE_URL?.trim()
+  if (!base) {
+    return path
   }
+  const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${normalizedBase}${normalizedPath}`
+}
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+const request = async <TResponse>(path: string, payload: unknown) => {
+  const response = await fetch(buildUrl(path), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -34,6 +41,12 @@ const request = async <TResponse>(path: string, payload: unknown) => {
   })
 
   if (!response.ok) {
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.includes('application/json')) {
+      const payload = await response.json().catch(() => null)
+      const message = payload?.error || `Request failed (${response.status})`
+      throw new Error(message)
+    }
     const message = await response.text()
     throw new Error(message || `Request failed (${response.status})`)
   }
@@ -63,7 +76,7 @@ export const useAgentDeploy = () => {
     try {
       setError(null)
       const response = await request<{ code?: string; source?: string }>(
-        '/agents/generate',
+        '/api/agents/generate',
         {
           prompt,
         },
@@ -92,7 +105,7 @@ export const useAgentDeploy = () => {
     try {
       setError(null)
       const response = await request<CompilationResult>(
-        '/agents/compile',
+        '/api/agents/compile',
         {
           code,
         },
@@ -100,7 +113,11 @@ export const useAgentDeploy = () => {
       if (!response.abi || !response.bytecode) {
         throw new Error('Compilation API returned incomplete artifacts')
       }
-      setCompiledArtifact({ abi: response.abi, bytecode: response.bytecode })
+      setCompiledArtifact({
+        abi: response.abi,
+        bytecode: response.bytecode,
+        contractName: response.contractName,
+      })
       setCompilationStatus('compiled')
       return response
     } catch (error) {
