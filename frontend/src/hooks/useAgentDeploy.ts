@@ -1,7 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Abi, Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
-import { registerAgent as registerAgentOnArena } from '@/utils/battlechain'
+import {
+  addSavedAgent,
+  loadSavedAgents,
+  registerAgent as registerAgentOnArena,
+  removeSavedAgent,
+} from '@/utils/battlechain'
 
 type CompilationStatus =
   | 'idle'
@@ -63,6 +68,11 @@ export const useAgentDeploy = () => {
     `0x${string}` | null
   >(null)
   const [error, setError] = useState<string | null>(null)
+  const [savedAgents, setSavedAgents] = useState<Address[]>([])
+
+  useEffect(() => {
+    setSavedAgents(loadSavedAgents())
+  }, [])
 
   const validateWalletClients = () => {
     if (!hasExpectedChainId) {
@@ -171,6 +181,7 @@ export const useAgentDeploy = () => {
 
       setDeployedAddress(receipt.contractAddress)
       setCompilationStatus('deployed')
+      setSavedAgents(addSavedAgent(receipt.contractAddress))
 
       return receipt.contractAddress
     } catch (error) {
@@ -230,6 +241,10 @@ export const useAgentDeploy = () => {
     registering,
     registrationHash,
     error,
+    savedAgents,
+    removeSavedAgent: (address: Address) => {
+      setSavedAgents(removeSavedAgent(address))
+    },
     generateAgent,
     compileAgent,
     deployAgent,

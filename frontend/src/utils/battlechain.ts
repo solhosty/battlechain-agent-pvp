@@ -10,6 +10,73 @@ export const BETTING_ADDRESS = process.env.NEXT_PUBLIC_BETTING_ADDRESS as Addres
 export const ARENA_ABI = ArenaAbi.abi as Abi
 export const BATTLE_ABI = BattleAbi.abi as Abi
 export const BETTING_ABI = SpectatorBettingAbi.abi as Abi
+export const AGENT_STORAGE_KEY = 'battlechain.deployedAgents'
+
+const normalizeAgentAddress = (address: Address) =>
+  address.toLowerCase() as Address
+
+const parseStoredAgents = (value: string | null): Address[] => {
+  if (!value) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(value)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    return parsed.filter((agent): agent is Address => typeof agent === 'string')
+  } catch (error) {
+    return []
+  }
+}
+
+export const loadSavedAgents = (): Address[] => {
+  if (typeof window === 'undefined') {
+    return []
+  }
+
+  const parsed = parseStoredAgents(localStorage.getItem(AGENT_STORAGE_KEY))
+  return parsed.map((agent) => normalizeAgentAddress(agent))
+}
+
+export const persistSavedAgents = (agents: Address[]) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  localStorage.setItem(AGENT_STORAGE_KEY, JSON.stringify(agents))
+}
+
+export const addSavedAgent = (address: Address): Address[] => {
+  const normalized = normalizeAgentAddress(address)
+  if (typeof window === 'undefined') {
+    return [normalized]
+  }
+
+  const current = loadSavedAgents()
+  if (current.some((agent) => normalizeAgentAddress(agent) === normalized)) {
+    return current
+  }
+
+  const next = [...current, normalized]
+  persistSavedAgents(next)
+  return next
+}
+
+export const removeSavedAgent = (address: Address): Address[] => {
+  const normalized = normalizeAgentAddress(address)
+  if (typeof window === 'undefined') {
+    return []
+  }
+
+  const current = loadSavedAgents()
+  const next = current.filter(
+    (agent) => normalizeAgentAddress(agent) !== normalized,
+  )
+  persistSavedAgents(next)
+  return next
+}
 
 export const getBattleAddress = async (
   client: PublicClient,

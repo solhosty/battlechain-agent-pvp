@@ -34,7 +34,11 @@ const AgentStudio: React.FC = () => {
     compileAgent,
     deployAgent,
     registerAgentForBattle,
+    savedAgents,
+    removeSavedAgent,
   } = useAgentDeploy()
+  const [selectedAgent, setSelectedAgent] = useState<Address | null>(null)
+  const agentForRegistration = selectedAgent ?? deployedAddress
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -113,8 +117,9 @@ const AgentStudio: React.FC = () => {
       toast.error(`Wrong network. Switch to chain ${expectedChainId}.`)
       return
     }
-    if (!deployedAddress) {
-      toast.error('Deploy your agent before registering')
+    const agentAddress = selectedAgent ?? deployedAddress
+    if (!agentAddress) {
+      toast.error('Deploy or select an agent before registering')
       return
     }
     if (!battleId.trim()) {
@@ -134,7 +139,7 @@ const AgentStudio: React.FC = () => {
 
     const hash = await registerAgentForBattle(
       parsedBattleId,
-      deployedAddress as Address,
+      agentAddress as Address,
     )
     if (hash) {
       toast.success('Agent registered in battle')
@@ -250,7 +255,7 @@ const AgentStudio: React.FC = () => {
             </button>
           </div>
 
-          {deployedAddress && (
+          {agentForRegistration && (
             <div className="mt-4 space-y-3">
               <input
                 value={battleId}
@@ -274,10 +279,67 @@ const AgentStudio: React.FC = () => {
             </div>
           )}
 
+          {savedAgents.length > 0 ? (
+            <div className="mt-4 rounded-lg border border-gray-700 bg-gray-900/50 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-200">
+                  Previously Deployed Agents
+                </h3>
+                {selectedAgent && (
+                  <span className="text-xs text-gray-400">
+                    Selected: {selectedAgent.slice(0, 10)}...
+                  </span>
+                )}
+              </div>
+              <div className="space-y-2">
+                {savedAgents.map((agent) => (
+                  <div
+                    key={agent}
+                    className={`flex flex-col gap-2 rounded-lg border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between ${
+                      selectedAgent === agent
+                        ? 'border-blue-500 bg-blue-900/30'
+                        : 'border-gray-700 bg-gray-800/60'
+                    }`}
+                  >
+                    <span className="font-mono text-xs text-gray-300">
+                      {agent}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setSelectedAgent(agent)}
+                        className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
+                      >
+                        {selectedAgent === agent
+                          ? 'Selected'
+                          : 'Use for Registration'}
+                      </button>
+                      <button
+                        onClick={() => removeSavedAgent(agent)}
+                        className="rounded-md border border-gray-600 px-3 py-1 text-xs text-gray-200 hover:border-gray-500"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-lg border border-gray-700 bg-gray-900/50 p-4 text-sm text-gray-400">
+              No saved agents yet. Deploy an agent to persist it across sessions.
+            </div>
+          )}
+
           {deployedAddress && (
             <div className="mt-4 p-4 bg-green-900/50 border border-green-600 rounded-lg">
               <p className="text-green-400 font-semibold">Agent Deployed!</p>
               <p className="text-sm text-gray-400 mt-1">Address: {deployedAddress}</p>
+            </div>
+          )}
+          {selectedAgent && selectedAgent !== deployedAddress && (
+            <div className="mt-4 p-4 bg-blue-900/40 border border-blue-700 rounded-lg">
+              <p className="text-blue-300 font-semibold">Using saved agent</p>
+              <p className="text-sm text-gray-300 mt-1">Address: {selectedAgent}</p>
             </div>
           )}
           {registrationHash && (
