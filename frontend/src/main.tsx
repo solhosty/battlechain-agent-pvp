@@ -6,7 +6,6 @@ import { WagmiProvider } from 'wagmi'
 import App from './App'
 import { wagmiConfig } from './utils/wagmiConfig'
 import './index.css'
-import 'connectkit/styles.css'
 
 const queryClient = new QueryClient()
 
