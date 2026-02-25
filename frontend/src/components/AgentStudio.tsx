@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import type { Abi } from 'viem'
+import type { Abi, Address } from 'viem'
 import { useAccount } from 'wagmi'
 import { useAgentDeploy } from '../hooks/useAgentDeploy'
 import { toast } from '@/components/ui/toast'
@@ -7,6 +7,7 @@ import { toast } from '@/components/ui/toast'
 const AgentStudio: React.FC = () => {
   const { isConnected } = useAccount()
   const [prompt, setPrompt] = useState('')
+  const [battleId, setBattleId] = useState('')
   const {
     generating,
     deploying,
@@ -14,10 +15,13 @@ const AgentStudio: React.FC = () => {
     compilationStatus,
     compiledArtifact,
     deployedAddress,
+    registering,
+    registrationHash,
     error,
     generateAgent,
     compileAgent,
-    deployAgent
+    deployAgent,
+    registerAgentForBattle,
   } = useAgentDeploy()
 
   const handleGenerate = async () => {
@@ -57,6 +61,39 @@ const AgentStudio: React.FC = () => {
     )
     if (address) {
       toast.success(`Agent deployed: ${address}`)
+    }
+  }
+
+  const handleRegister = async () => {
+    if (!isConnected) {
+      toast.error('Connect your wallet from the navigation bar')
+      return
+    }
+    if (!deployedAddress) {
+      toast.error('Deploy your agent before registering')
+      return
+    }
+    if (!battleId.trim()) {
+      toast.error('Enter a battle ID to register')
+      return
+    }
+
+    let parsedBattleId: bigint
+    try {
+      parsedBattleId = BigInt(battleId.trim())
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Battle ID must be a number'
+      toast.error(message)
+      return
+    }
+
+    const hash = await registerAgentForBattle(
+      parsedBattleId,
+      deployedAddress as Address,
+    )
+    if (hash) {
+      toast.success('Agent registered in battle')
     }
   }
 
@@ -134,10 +171,32 @@ const AgentStudio: React.FC = () => {
             </button>
           </div>
 
+          <div className="mt-4 space-y-3">
+            <input
+              value={battleId}
+              onChange={(e) => setBattleId(e.target.value)}
+              placeholder="Battle ID to register"
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            />
+            <button
+              onClick={handleRegister}
+              disabled={!deployedAddress || registering}
+              className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
+            >
+              {registering ? 'Registering...' : 'Register Agent in Arena'}
+            </button>
+          </div>
+
           {deployedAddress && (
             <div className="mt-4 p-4 bg-green-900/50 border border-green-600 rounded-lg">
               <p className="text-green-400 font-semibold">Agent Deployed!</p>
               <p className="text-sm text-gray-400 mt-1">Address: {deployedAddress}</p>
+            </div>
+          )}
+          {registrationHash && (
+            <div className="mt-4 p-4 bg-blue-900/50 border border-blue-600 rounded-lg">
+              <p className="text-blue-400 font-semibold">Agent Registered!</p>
+              <p className="text-sm text-gray-400 mt-1">Tx: {registrationHash}</p>
             </div>
           )}
           {error && (

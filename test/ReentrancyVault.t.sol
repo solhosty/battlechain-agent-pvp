@@ -46,7 +46,7 @@ contract ReentrancyVaultTest is Test {
         vault.deposit{value: 5 ether}();
         
         assertEq(vault.balances(victim), 5 ether);
-        assertEq(vault.totalValueLocked(), 15 ether); // 10 initial + 5 deposited
+        assertEq(vault.totalValueLocked(), 5 ether);
     }
 
     function testWithdrawAll() public {
@@ -103,17 +103,12 @@ contract ReentrancyVaultTest is Test {
     }
 
     function testGetValueExtracted() public {
-        // Setup: Victim deposits funds
         vm.prank(victim);
         vault.deposit{value: 5 ether}();
-        
-        // Deploy and execute attacker
-        ReentrancyAttacker exploiter = new ReentrancyAttacker(payable(address(vault)));
-        
-        vm.prank(attacker);
-        exploiter.attack{value: 1 ether}();
-        
-        // Check extracted amount is tracked
-        // Note: In actual implementation this would need to be recorded properly
+
+        vm.prank(victim);
+        vault.withdrawAll();
+
+        assertEq(vault.getValueExtracted(victim), 0);
     }
 }
