@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { useBattleChain, placeBet } from '../utils/battlechain';
+import { placeBet } from '../utils/battlechain';
+import { useBattleChain } from '../hooks/useBattleChain';
 
 interface Agent {
   address: string;
