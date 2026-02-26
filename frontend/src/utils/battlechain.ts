@@ -1,5 +1,5 @@
 import type { Abi, Address, PublicClient, WalletClient } from 'viem'
-import { parseEther } from 'viem'
+import { parseAbiItem, parseEther } from 'viem'
 import ArenaAbi from '@/abis/Arena.json'
 import BattleAbi from '@/abis/Battle.json'
 import SpectatorBettingAbi from '@/abis/SpectatorBetting.json'
@@ -7,9 +7,219 @@ import type { ChallengeType } from '@/types/contracts'
 
 export const ARENA_ADDRESS = process.env.NEXT_PUBLIC_ARENA_ADDRESS as Address
 export const BETTING_ADDRESS = process.env.NEXT_PUBLIC_BETTING_ADDRESS as Address
+export const RPC_URL = process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL
 export const ARENA_ABI = ArenaAbi.abi as Abi
 export const BATTLE_ABI = BattleAbi.abi as Abi
 export const BETTING_ABI = SpectatorBettingAbi.abi as Abi
+export const AGENT_STORAGE_KEY = 'battlechain.deployedAgents'
+export const AGENT_ABI = [
+  {
+    type: 'function',
+    name: 'owner',
+    inputs: [],
+    outputs: [{ type: 'address' }],
+  },
+] as const
+const AGENT_REGISTERED_EVENT_SIGNATURE =
+  'event AgentRegistered(uint256 indexed battleId, address indexed agent)'
+export const AGENT_REGISTERED_EVENT = parseAbiItem(
+  AGENT_REGISTERED_EVENT_SIGNATURE,
+)
+
+const normalizeAgentAddress = (address: Address) =>
+  address.toLowerCase() as Address
+
+const parseStoredAgents = (value: string | null): Address[] => {
+  if (!value) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(value)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    return parsed.filter((agent): agent is Address => typeof agent === 'string')
+  } catch (error) {
+    return []
+  }
+}
+
+export const loadSavedAgents = (): Address[] => {
+  if (typeof window === 'undefined') {
+    return []
+  }
+
+  const parsed = parseStoredAgents(localStorage.getItem(AGENT_STORAGE_KEY))
+  return parsed.map((agent) => normalizeAgentAddress(agent))
+}
+
+export const persistSavedAgents = (agents: Address[]) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  localStorage.setItem(AGENT_STORAGE_KEY, JSON.stringify(agents))
+}
+
+export const mergeSavedAgents = (
+  existing: Address[],
+  discovered: Address[],
+): Address[] => {
+  const merged = new Map<Address, Address>()
+
+  for (const agent of existing) {
+    const normalized = normalizeAgentAddress(agent)
+    merged.set(normalized, normalized)
+  }
+
+  for (const agent of discovered) {
+    const normalized = normalizeAgentAddress(agent)
+    merged.set(normalized, normalized)
+  }
+
+  return Array.from(merged.values())
+}
+
+export const addSavedAgent = (address: Address): Address[] => {
+  const normalized = normalizeAgentAddress(address)
+  if (typeof window === 'undefined') {
+    return [normalized]
+  }
+
+  const current = loadSavedAgents()
+  if (current.some((agent) => normalizeAgentAddress(agent) === normalized)) {
+    return current
+  }
+
+  const next = [...current, normalized]
+  persistSavedAgents(next)
+  return next
+}
+
+export const removeSavedAgent = (address: Address): Address[] => {
+  const normalized = normalizeAgentAddress(address)
+  if (typeof window === 'undefined') {
+    return []
+  }
+
+  const current = loadSavedAgents()
+  const next = current.filter(
+    (agent) => normalizeAgentAddress(agent) !== normalized,
+  )
+  persistSavedAgents(next)
+  return next
+}
+
+export const discoverAgentsByOwner = async (
+  client: PublicClient,
+  owner: Address,
+): Promise<Address[]> => {
+  console.info('[AgentDiscovery] request', {
+    owner,
+    arenaAddress: ARENA_ADDRESS,
+    chainId: client.chain?.id,
+    rpcUrl: RPC_URL,
+  })
+
+  if (!ARENA_ADDRESS) {
+    console.error('Agent discovery skipped: missing arena address', {
+      arenaAddress: ARENA_ADDRESS,
+      chainId: client.chain?.id,
+      owner,
+    })
+    return []
+  }
+
+  let logs: Array<{ args?: { agent?: Address } }>
+
+  const fromBlock = 0n
+  const toBlock = 'latest'
+
+  try {
+    logs = await client.getLogs({
+      address: ARENA_ADDRESS,
+      event: AGENT_REGISTERED_EVENT,
+      fromBlock,
+      toBlock,
+    })
+    console.info('[AgentDiscovery] getLogs', {
+      count: logs.length,
+      fromBlock,
+      toBlock,
+      arenaAddress: ARENA_ADDRESS,
+      chainId: client.chain?.id,
+      owner,
+    })
+  } catch (error) {
+    console.error('Agent discovery RPC failed', {
+      error,
+      arenaAddress: ARENA_ADDRESS,
+      chainId: client.chain?.id,
+      owner,
+    })
+    return []
+  }
+
+  const matches: Address[] = []
+  const normalizedOwner = normalizeAgentAddress(owner)
+
+  for (const log of logs) {
+    try {
+      const agent = log.args?.agent
+      if (!agent) {
+        console.error('Agent discovery log missing agent', {
+          log,
+          arenaAddress: ARENA_ADDRESS,
+          chainId: client.chain?.id,
+          owner,
+        })
+        continue
+      }
+
+      console.info('[AgentDiscovery] log', { agent })
+
+      const normalizedAgent = normalizeAgentAddress(agent)
+      if (matches.includes(normalizedAgent)) {
+        continue
+      }
+
+      let foundOwner: Address
+      try {
+        foundOwner = (await client.readContract({
+          address: agent,
+          abi: AGENT_ABI,
+          functionName: 'owner',
+        })) as Address
+      } catch (error) {
+        console.error('Agent discovery owner check failed', {
+          error,
+          agent,
+          arenaAddress: ARENA_ADDRESS,
+          chainId: client.chain?.id,
+          owner,
+        })
+        continue
+      }
+
+      console.info('[AgentDiscovery] owner', { agent, foundOwner })
+
+      if (normalizeAgentAddress(foundOwner) === normalizedOwner) {
+        console.info('[AgentDiscovery] match', { agent, owner })
+        matches.push(normalizedAgent)
+      }
+    } catch (error) {
+      console.error('Agent discovery parse failed', {
+        error,
+        arenaAddress: ARENA_ADDRESS,
+        chainId: client.chain?.id,
+        owner,
+      })
+    }
+  }
+
+  return matches
+}
 
 export const getBattleAddress = async (
   client: PublicClient,
