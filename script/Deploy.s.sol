@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/Script.sol";
 import "../src/Arena.sol";
 import "../src/ChallengeFactory.sol";
+import "../src/AgentFactory.sol";
 import "../src/SpectatorBetting.sol";
 import "../src/interfaces/IChallengeFactory.sol";
 
@@ -26,6 +27,9 @@ contract DeployScript is Script {
             true
         );
         
+        AgentFactory agentFactory = new AgentFactory();
+        console.log("AgentFactory deployed at:", address(agentFactory));
+
         // Deploy Arena
         Arena arena = new Arena(
             attackRegistry,
@@ -35,6 +39,7 @@ contract DeployScript is Script {
         console.log("Arena deployed at:", address(arena));
 
         challengeFactory.setAuthorizedCaller(address(arena), true);
+        agentFactory.setAuthorizedCaller(address(arena), true);
         
         // Deploy SpectatorBetting
         SpectatorBetting betting = new SpectatorBetting(address(arena));

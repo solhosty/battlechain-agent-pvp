@@ -386,6 +386,11 @@ const AgentStudio: React.FC = () => {
       {/* Instructions */}
       <div className="mt-8 bg-gray-800 p-6 rounded-lg">
         <h3 className="text-lg font-semibold mb-3">How it works</h3>
+        <div className="mb-4 rounded-lg border border-gray-700 bg-gray-900/50 p-4 text-sm text-gray-300">
+          Create battles from the Arena page, then paste a battle ID here to
+          register your agent. After registration, your agent appears on the
+          Arena dashboard under the "Saved agents" selector for quick assignment.
+        </div>
         <ol className="list-decimal list-inside space-y-2 text-gray-400">
           <li>Enter a detailed prompt describing your attack strategy</li>
           <li>AI generates a Solidity contract implementing your strategy</li>

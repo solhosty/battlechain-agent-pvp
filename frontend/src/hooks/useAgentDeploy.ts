@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { Abi, Address } from 'viem'
+import { encodeDeployData, parseEventLogs } from 'viem'
 import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
 import {
-  addSavedAgent,
-  loadSavedAgents,
-  registerAgent as registerAgentOnArena,
-  removeSavedAgent,
+  AGENT_CREATED_EVENT,
+  createAgent,
+  getAgentsByOwner,
+  registerAgent,
 } from '@/utils/battlechain'
+import type { GasOverrides } from '@/utils/battlechain'
+import { formatWalletError } from '@/utils/walletErrors'
 
 type CompilationStatus =
   | 'idle'
@@ -60,7 +63,7 @@ const request = async <TResponse>(path: string, payload: unknown) => {
 }
 
 export const useAgentDeploy = () => {
-  const { isConnected } = useAccount()
+  const { isConnected, address: account } = useAccount()
   const chainId = useChainId()
   const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
   const hasExpectedChainId = Number.isFinite(expectedChainId) && expectedChainId > 0
@@ -123,6 +126,12 @@ export const useAgentDeploy = () => {
     }
     const actualChainId =
       chainId ?? walletClient.chain?.id ?? publicClient.chain?.id
+    if (!actualChainId) {
+      return {
+        ready: false,
+        reason: 'Unable to detect wallet chain. Reconnect your wallet.',
+      }
+    }
     if (actualChainId && actualChainId !== expectedChainId) {
       return {
         ready: false,
@@ -136,9 +145,26 @@ export const useAgentDeploy = () => {
     }
   })()
 
+  const refreshAgents = async (owner: Address) => {
+    if (!publicClient) {
+      return []
+    }
+
+    const agents = await getAgentsByOwner(publicClient, owner)
+    setSavedAgents(agents)
+    return agents
+  }
+
   useEffect(() => {
-    setSavedAgents(loadSavedAgents())
-  }, [])
+    if (!account || !publicClient) {
+      setSavedAgents([])
+      return
+    }
+
+    refreshAgents(account).catch((error) => {
+      console.error('Failed to load agents:', error)
+    })
+  }, [account, publicClient])
 
   const validateWalletClients = () => {
     if (!walletStatus.ready) {
@@ -168,6 +194,86 @@ export const useAgentDeploy = () => {
     }
   }
 
+  const gasBufferSteps = [120n, 130n, 150n]
+
+  const applyGasBuffer = (gasPrice: bigint, buffer: bigint) =>
+    (gasPrice * buffer) / 100n
+
+  const getErrorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : String(error)
+
+  const isReplacementUnderpriced = (message: string) =>
+    message.includes('insufficient gas price to replace existing transaction') ||
+    message.includes('replacement transaction underpriced')
+
+  const isNonceTooLow = (message: string) => message.includes('nonce too low')
+
+  const isAlreadyKnown = (message: string) => message.includes('already known')
+
+  const shouldRetryTx = (message: string) =>
+    isReplacementUnderpriced(message) ||
+    isNonceTooLow(message) ||
+    isAlreadyKnown(message)
+
+  const shouldRefreshNonce = (message: string) => isNonceTooLow(message)
+
+  const backoff = async (attempt: number) => {
+    const delay = 500 * 2 ** attempt
+    await new Promise((resolve) => setTimeout(resolve, delay))
+  }
+
+  const sendWithRetry = async (
+    send: (overrides: GasOverrides) => Promise<`0x${string}`>,
+  ) => {
+    if (!walletClient) {
+      throw new Error('Wallet client unavailable. Reconnect wallet and try again.')
+    }
+
+    if (!publicClient) {
+      throw new Error(
+        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+      )
+    }
+
+    const sender = account ?? walletClient.account?.address
+    if (!sender) {
+      throw new Error('Wallet account unavailable. Reconnect wallet and try again.')
+    }
+
+    let nonce = await publicClient.getTransactionCount({
+      address: sender,
+      blockTag: 'pending',
+    })
+
+    for (let attempt = 0; attempt < gasBufferSteps.length; attempt += 1) {
+      const gasPrice = await publicClient.getGasPrice()
+      const overrides: GasOverrides = {
+        gasPrice: applyGasBuffer(gasPrice, gasBufferSteps[attempt]),
+        nonce,
+      }
+
+      try {
+        return await send(overrides)
+      } catch (error) {
+        const message = getErrorMessage(error).toLowerCase()
+        if (!shouldRetryTx(message) || attempt === gasBufferSteps.length - 1) {
+          throw error
+        }
+
+        if (shouldRefreshNonce(message)) {
+          nonce = await publicClient.getTransactionCount({
+            address: sender,
+            blockTag: 'pending',
+          })
+        }
+
+        await backoff(attempt)
+      }
+    }
+
+    throw new Error('Transaction retry limit reached.')
+  }
+
   const generateAgent = async (prompt: string) => {
     setGenerating(true)
     try {
@@ -188,7 +294,7 @@ export const useAgentDeploy = () => {
 
       return code
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = formatWalletError(error)
       console.error('Failed to generate agent:', message)
       setError(message)
       setCompilationStatus('error')
@@ -218,7 +324,7 @@ export const useAgentDeploy = () => {
       setCompilationStatus('compiled')
       return response
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = formatWalletError(error)
       console.error('Compilation failed:', message)
       setError(message)
       setCompilationStatus('error')
@@ -243,26 +349,48 @@ export const useAgentDeploy = () => {
         )
       }
 
-      const hash = await walletClient.deployContract({
+      const sender = account ?? walletClient.account?.address
+      if (!sender) {
+        throw new Error('Wallet account unavailable. Reconnect wallet and try again.')
+      }
+
+      const encodedBytecode = encodeDeployData({
         abi,
         bytecode,
+        args: [sender],
       })
+
+      const agentName = compiledArtifact?.contractName ?? 'Agent'
+      const hash = await sendWithRetry((overrides) =>
+        createAgent(walletClient, agentName, encodedBytecode, overrides),
+      )
       setDeployPhase('submitted')
       setDeployPhase('confirming')
       const receipt = await waitForReceiptWithTimeout(hash)
 
-      if (!receipt.contractAddress) {
-        throw new Error('Contract address not found')
+      const parsedLogs = parseEventLogs({
+        abi: [AGENT_CREATED_EVENT],
+        logs: receipt.logs,
+      })
+      const created = parsedLogs.find(
+        (log) => log.eventName === 'AgentCreated',
+      )
+      const agentAddress = created?.args?.agent as Address | undefined
+
+      if (!agentAddress) {
+        throw new Error('Agent address not found in receipt logs')
       }
 
-      setDeployedAddress(receipt.contractAddress)
+      setDeployedAddress(agentAddress)
       setCompilationStatus('deployed')
-      setSavedAgents(addSavedAgent(receipt.contractAddress))
+      await refreshAgents(sender).catch((error) => {
+        console.error('Failed to refresh agents after deploy:', error)
+      })
       setDeployPhase('success')
 
-      return receipt.contractAddress
+      return agentAddress
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = formatWalletError(error)
       console.error('Deployment failed:', message)
       setError(message)
       setCompilationStatus('error')
@@ -295,10 +423,13 @@ export const useAgentDeploy = () => {
         )
       }
 
-      const hash = await registerAgentOnArena(
-        walletClient,
-        battleId,
-        agentAddress,
+      const hash = await sendWithRetry((overrides) =>
+        registerAgent(
+          walletClient,
+          battleId,
+          agentAddress,
+          overrides,
+        ),
       )
       setRegisterPhase('submitted')
       setRegisterPhase('confirming')
@@ -308,7 +439,7 @@ export const useAgentDeploy = () => {
 
       return hash
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = formatWalletError(error)
       console.error('Registration failed:', message)
       setError(message)
       setRegisterPhase(
@@ -335,7 +466,11 @@ export const useAgentDeploy = () => {
     registerPhase,
     savedAgents,
     removeSavedAgent: (address: Address) => {
-      setSavedAgents(removeSavedAgent(address))
+      setSavedAgents((current) =>
+        current.filter(
+          (agent) => agent.toLowerCase() !== address.toLowerCase(),
+        ),
+      )
     },
     generateAgent,
     compileAgent,

@@ -2,12 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { formatEther } from 'viem'
-import { useWalletClient } from 'wagmi'
+import { useChainId, usePublicClient, useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
-import { claimPayout, placeBet } from '@/utils/battlechain'
+import { getGasOverrides, placeBet, claimPayout } from '@/utils/battlechain'
+import { formatEther } from 'viem'
 import type { BattleSummary } from '@/types/contracts'
 import { toast } from '@/components/ui/toast'
+import { formatWalletError } from '@/utils/walletErrors'
 
 interface Agent {
   address: string;
@@ -25,7 +26,16 @@ const SpectatorView: React.FC = () => {
     betPayoutsByBattle,
     participationByBattle,
   } = useBattleChain()
-  const { data: walletClient } = useWalletClient()
+  const chainId = useChainId()
+  const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
+  const hasExpectedChainId =
+    Number.isFinite(expectedChainId) && expectedChainId > 0
+  const publicClient = usePublicClient({
+    chainId: hasExpectedChainId ? expectedChainId : undefined,
+  })
+  const { data: walletClient } = useWalletClient({
+    chainId: hasExpectedChainId ? expectedChainId : undefined,
+  })
   const searchParams = useSearchParams()
   const [selectedBattle, setSelectedBattle] = useState<BattleSummary | null>(null)
   const [agents, setAgents] = useState<Agent[]>([])
@@ -87,18 +97,32 @@ const SpectatorView: React.FC = () => {
       return
     }
 
+    const actualChainId =
+      chainId ?? walletClient.chain?.id ?? publicClient?.chain?.id
+    if (!actualChainId) {
+      toast.error('Unable to detect wallet chain. Reconnect your wallet.')
+      return
+    }
+    if (hasExpectedChainId && actualChainId !== expectedChainId) {
+      toast.error(`Wrong network. Switch to chain ${expectedChainId}.`)
+      return
+    }
+
     setBetting(true)
     try {
+      const gasOverrides = await getGasOverrides(publicClient)
       await placeBet(
         walletClient,
         selectedBattle.id,
         BigInt(selectedAgent),
         parseFloat(betAmount),
+        gasOverrides,
       )
       toast.success('Bet placed successfully')
     } catch (error) {
-      console.error('Failed to place bet:', error)
-      toast.error('Failed to place bet')
+      const message = formatWalletError(error)
+      console.error('Failed to place bet:', message)
+      toast.error(message)
     } finally {
       setBetting(false)
     }

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatEther } from 'viem'
 import type { Address } from 'viem'
@@ -9,14 +9,13 @@ import { useBattleChain } from '@/hooks/useBattleChain'
 import {
   createBattle,
   claimPrize,
-  discoverAgentsByOwner,
-  loadSavedAgents,
-  mergeSavedAgents,
-  persistSavedAgents,
+  getAgentsByOwner,
+  getGasOverrides,
   registerAgent,
 } from '@/utils/battlechain'
 import { ChallengeType } from '@/types/contracts'
 import { toast } from '@/components/ui/toast'
+import { formatWalletError } from '@/utils/walletErrors'
 import {
   Dialog,
   DialogContent,
@@ -52,11 +51,12 @@ const DashboardContent: React.FC = () => {
   const publicClient = usePublicClient({
     chainId: hasExpectedChainId ? expectedChainId : undefined,
   })
-  const { data: walletClient } = useWalletClient()
+  const { data: walletClient } = useWalletClient({
+    chainId: hasExpectedChainId ? expectedChainId : undefined,
+  })
   const rpcUrl = process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL
   const router = useRouter()
   const [savedAgents, setSavedAgents] = useState<Address[]>([])
-  const [savedAgentsLoaded, setSavedAgentsLoaded] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState<Address | ''>('')
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -91,6 +91,96 @@ const DashboardContent: React.FC = () => {
     }
   }
 
+  const gasBufferSteps = [120n, 130n, 150n]
+
+  const applyGasBuffer = (gasPrice: bigint, buffer: bigint) =>
+    (gasPrice * buffer) / 100n
+
+  const getErrorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : String(error)
+
+  const isReplacementUnderpriced = (message: string) =>
+    message.includes('insufficient gas price to replace existing transaction') ||
+    message.includes('replacement transaction underpriced')
+
+  const isNonceTooLow = (message: string) => message.includes('nonce too low')
+
+  const isAlreadyKnown = (message: string) => message.includes('already known')
+
+  const shouldRetryTx = (message: string) =>
+    isReplacementUnderpriced(message) ||
+    isNonceTooLow(message) ||
+    isAlreadyKnown(message)
+
+  const shouldRefreshNonce = (message: string) => isNonceTooLow(message)
+
+  const backoff = async (attempt: number) => {
+    const delay = 500 * 2 ** attempt
+    await new Promise((resolve) => setTimeout(resolve, delay))
+  }
+
+  const sendCreateBattleWithRetry = async (
+    challengeType: ChallengeType,
+    entryFee: number,
+    maxAgents: number,
+    durationSeconds: number,
+  ) => {
+    if (!publicClient) {
+      throw new Error(
+        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+      )
+    }
+
+    if (!walletClient) {
+      throw new Error('Wallet client unavailable. Reconnect wallet and try again.')
+    }
+
+    const sender = account ?? walletClient.account?.address
+    if (!sender) {
+      throw new Error('Wallet account unavailable. Reconnect wallet and try again.')
+    }
+
+    let nonce = await publicClient.getTransactionCount({
+      address: sender,
+      blockTag: 'pending',
+    })
+
+    for (let attempt = 0; attempt < gasBufferSteps.length; attempt += 1) {
+      const gasPrice = await publicClient.getGasPrice()
+      const overrides = {
+        gasPrice: applyGasBuffer(gasPrice, gasBufferSteps[attempt]),
+        nonce,
+      }
+
+      try {
+        return await createBattle(
+          walletClient,
+          challengeType,
+          entryFee,
+          maxAgents,
+          durationSeconds,
+          overrides,
+        )
+      } catch (error) {
+        const message = getErrorMessage(error).toLowerCase()
+        if (!shouldRetryTx(message) || attempt === gasBufferSteps.length - 1) {
+          throw error
+        }
+
+        if (shouldRefreshNonce(message)) {
+          nonce = await publicClient.getTransactionCount({
+            address: sender,
+            blockTag: 'pending',
+          })
+        }
+
+        await backoff(attempt)
+      }
+    }
+
+    throw new Error('Failed to submit transaction after retries.')
+  }
+
   useEffect(() => {
     fetchBattles()
   }, [fetchBattles])
@@ -101,65 +191,38 @@ const DashboardContent: React.FC = () => {
     }
   }, [savedAgents, selectedAgent])
 
+  const refreshAgents = useCallback(async () => {
+    if (!publicClient || !account) {
+      return
+    }
+
+    try {
+      const agents = await getAgentsByOwner(publicClient, account)
+      setSavedAgents(agents)
+    } catch (error) {
+      console.error('Failed to refresh agents:', error)
+    }
+  }, [account, publicClient])
+
   useEffect(() => {
-    const refreshAgents = () => {
-      setSavedAgents(loadSavedAgents())
-      setSavedAgentsLoaded(true)
+    if (!isConnected || !account || !publicClient) {
+      setSavedAgents([])
+      return
     }
 
     refreshAgents()
-    window.addEventListener('focus', refreshAgents)
-    window.addEventListener('storage', refreshAgents)
-
-    return () => {
-      window.removeEventListener('focus', refreshAgents)
-      window.removeEventListener('storage', refreshAgents)
-    }
-  }, [])
+  }, [account, isConnected, publicClient, refreshAgents])
 
   useEffect(() => {
-    if (!isConnected || !account) {
-      return
+    const handleFocus = () => {
+      refreshAgents()
     }
 
-    if (!publicClient) {
-      console.error('Agent discovery skipped: missing public client', {
-        account,
-      })
-      return
-    }
-
-    if (!savedAgentsLoaded) {
-      return
-    }
-
-    console.info('[AgentDiscovery] start', {
-      account,
-      isConnected,
-      chainId: publicClient?.chain?.id,
-    })
-
-    let active = true
-
-    discoverAgentsByOwner(publicClient, account)
-      .then((found) => {
-        const merged = mergeSavedAgents(savedAgents, found)
-        persistSavedAgents(merged)
-        console.info('[AgentDiscovery] complete', {
-          saved: savedAgents.length,
-          discovered: found.length,
-          merged: merged.length,
-        })
-        if (active) {
-          setSavedAgents(merged)
-        }
-      })
-      .catch((error) => console.error('Agent discovery failed', error))
-
+    window.addEventListener('focus', handleFocus)
     return () => {
-      active = false
+      window.removeEventListener('focus', handleFocus)
     }
-  }, [account, isConnected, publicClient, savedAgents, savedAgentsLoaded])
+  }, [refreshAgents])
 
   const handleAssignAgent = async (battleId: bigint) => {
     if (!walletClient) {
@@ -173,12 +236,30 @@ const DashboardContent: React.FC = () => {
     }
 
     try {
-      await registerAgent(walletClient, battleId, selectedAgent as Address)
+      const actualChainId =
+        chainId ?? walletClient.chain?.id ?? publicClient?.chain?.id
+      if (!actualChainId) {
+        toast.error('Unable to detect wallet chain. Reconnect your wallet.')
+        return
+      }
+      if (actualChainId !== expectedChainId) {
+        toast.error(`Wrong network. Switch to chain ${expectedChainId}.`)
+        return
+      }
+
+      const gasOverrides = await getGasOverrides(publicClient)
+      await registerAgent(
+        walletClient,
+        battleId,
+        selectedAgent as Address,
+        gasOverrides,
+      )
       toast.success('Agent registered for battle')
       fetchBattles()
     } catch (error) {
-      console.error('Failed to assign agent:', error)
-      toast.error('Failed to assign agent')
+      const message = formatWalletError(error)
+      console.error('Failed to assign agent:', message)
+      toast.error(message)
     }
   }
 
@@ -211,7 +292,12 @@ const DashboardContent: React.FC = () => {
 
     const actualChainId =
       chainId ?? walletClient.chain?.id ?? publicClient.chain?.id
-    if (actualChainId && actualChainId !== expectedChainId) {
+    if (!actualChainId) {
+      toast.error('Unable to detect wallet chain. Reconnect your wallet.')
+      setCreatePhase('error')
+      return
+    }
+    if (actualChainId !== expectedChainId) {
       toast.error(`Wrong network. Switch to chain ${expectedChainId}.`)
       setCreatePhase('error')
       return
@@ -241,8 +327,7 @@ const DashboardContent: React.FC = () => {
     setCreatePhase('awaiting_wallet')
 
     try {
-      const hash = await createBattle(
-        walletClient,
+      const hash = await sendCreateBattleWithRetry(
         createForm.challengeType,
         entryFee,
         maxAgents,
@@ -257,7 +342,7 @@ const DashboardContent: React.FC = () => {
       setCreateOpen(false)
       fetchBattles()
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = formatWalletError(error)
       console.error('Failed to create battle:', message)
       setCreatePhase(
         message.toLowerCase().includes('timeout') ? 'timeout' : 'error',
