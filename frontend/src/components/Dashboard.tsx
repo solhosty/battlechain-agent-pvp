@@ -2,11 +2,13 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { formatEther } from 'viem'
 import type { Address } from 'viem'
 import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
 import {
   createBattle,
+  claimPrize,
   discoverAgentsByOwner,
   getGasOverrides,
   loadSavedAgents,
@@ -42,6 +44,7 @@ const DashboardContent: React.FC = () => {
     loading,
     fetchBattles,
     creatorBattleIds,
+    claimablePrizesByBattle,
   } = useBattleChain()
   const { address: account } = useAccount()
   const chainId = useChainId()
@@ -68,6 +71,7 @@ const DashboardContent: React.FC = () => {
     maxAgents: '4',
     durationHours: '24',
   })
+  const [claimingBattle, setClaimingBattle] = useState<bigint | null>(null)
 
   const waitForReceiptWithTimeout = async (hash: `0x${string}`) => {
     if (!publicClient) {
@@ -380,6 +384,25 @@ const DashboardContent: React.FC = () => {
     }
   }
 
+  const handleClaimPrize = async (battleId: bigint) => {
+    if (!walletClient) {
+      toast.error('Connect your wallet to claim')
+      return
+    }
+
+    setClaimingBattle(battleId)
+    try {
+      await claimPrize(walletClient, battleId)
+      toast.success('Prize claim submitted')
+      fetchBattles()
+    } catch (error) {
+      console.error('Failed to claim prize:', error)
+      toast.error('Failed to claim prize')
+    } finally {
+      setClaimingBattle(null)
+    }
+  }
+
   const handleViewDetails = (battleId: bigint) => {
     router.push(`/spectate?battleId=${battleId.toString()}`)
   }
@@ -463,6 +486,7 @@ const DashboardContent: React.FC = () => {
         ) : (
           <div className="divide-y divide-gray-700">
             {battles.map((battle) => (
+              
               <div key={battle.id} className="p-6 hover:bg-gray-700 transition">
                 <div className="flex justify-between items-center">
                   <div>
@@ -486,6 +510,15 @@ const DashboardContent: React.FC = () => {
                     </p>
                   </div>
                 </div>
+                {claimablePrizesByBattle[battle.id.toString()] ? (
+                  <div className="mt-4 rounded-lg bg-gray-900/60 p-3 text-sm text-emerald-200">
+                    Claimable prize:{' '}
+                    {formatEther(
+                      claimablePrizesByBattle[battle.id.toString()],
+                    )}{' '}
+                    ETH
+                  </div>
+                ) : null}
                 <div className="mt-4 flex gap-4">
                   <button
                     onClick={() => handleViewDetails(battle.id)}
@@ -510,6 +543,21 @@ const DashboardContent: React.FC = () => {
                         : 'Select Agent'}
                     </button>
                   )}
+                  {claimablePrizesByBattle[battle.id.toString()] ? (
+                    <button
+                      disabled={!isConnected || claimingBattle === battle.id}
+                      onClick={() => handleClaimPrize(battle.id)}
+                      className={`px-4 py-2 rounded text-sm ${
+                        isConnected
+                          ? 'bg-emerald-600 hover:bg-emerald-700'
+                          : 'bg-gray-600 cursor-not-allowed'
+                      }`}
+                    >
+                      {claimingBattle === battle.id
+                        ? 'Claiming...'
+                        : 'Claim Prize'}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))}

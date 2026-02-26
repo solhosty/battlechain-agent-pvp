@@ -195,4 +195,15 @@ contract SpectatorBettingTest is Test {
         assertEq(amount, 3 ether);
         assertEq(betting.totalWageredPerAgent(BATTLE_ID, 0), 3 ether);
     }
+
+    function testRegisterBattleDuplicateAgents() public {
+        SpectatorBetting freshBetting = new SpectatorBetting(arena);
+        address[] memory agents = new address[](2);
+        agents[0] = address(10);
+        agents[1] = address(10);
+
+        vm.prank(arena);
+        vm.expectRevert("Duplicate agent");
+        freshBetting.registerBattle(1, agents, START_TIME);
+    }
 }

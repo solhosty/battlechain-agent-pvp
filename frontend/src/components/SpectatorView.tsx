@@ -4,7 +4,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useChainId, usePublicClient, useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
-import { getGasOverrides, placeBet } from '@/utils/battlechain'
+import { getGasOverrides, placeBet, claimPayout } from '@/utils/battlechain'
+import { formatEther } from 'viem'
 import type { BattleSummary } from '@/types/contracts'
 import { toast } from '@/components/ui/toast'
 import { formatWalletError } from '@/utils/walletErrors'
@@ -22,6 +23,8 @@ const SpectatorView: React.FC = () => {
     loading,
     fetchBattles,
     fetchBattleAgents,
+    betPayoutsByBattle,
+    participationByBattle,
   } = useBattleChain()
   const chainId = useChainId()
   const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
@@ -40,6 +43,7 @@ const SpectatorView: React.FC = () => {
   const [betAmount, setBetAmount] = useState('')
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null)
   const [betting, setBetting] = useState(false)
+  const [claimingPayout, setClaimingPayout] = useState(false)
 
   useEffect(() => {
     fetchBattles()
@@ -121,6 +125,27 @@ const SpectatorView: React.FC = () => {
       toast.error(message)
     } finally {
       setBetting(false)
+    }
+  }
+
+  const handleClaimPayout = async () => {
+    if (!selectedBattle) {
+      return
+    }
+    if (!walletClient) {
+      toast.error('Connect your wallet to claim')
+      return
+    }
+
+    setClaimingPayout(true)
+    try {
+      await claimPayout(walletClient, selectedBattle.id)
+      toast.success('Payout claimed')
+    } catch (error) {
+      console.error('Failed to claim payout:', error)
+      toast.error('Failed to claim payout')
+    } finally {
+      setClaimingPayout(false)
     }
   }
 
@@ -271,6 +296,45 @@ const SpectatorView: React.FC = () => {
                 </p>
                 <p className="text-xs text-gray-500 mt-1">Based on current odds</p>
               </div>
+
+              {(() => {
+                const payout =
+                  betPayoutsByBattle[selectedBattle.id.toString()] ?? 0n
+                const betStatus =
+                  participationByBattle[selectedBattle.id.toString()]
+                if (!betStatus?.asBettor) {
+                  return null
+                }
+                if (betStatus.betClaimed) {
+                  return (
+                    <div className="mt-4 rounded-lg border border-emerald-600/40 bg-emerald-900/20 p-3 text-sm text-emerald-200">
+                      Payout claimed for this battle.
+                    </div>
+                  )
+                }
+                if (payout === 0n) {
+                  return (
+                    <div className="mt-4 rounded-lg border border-blue-500/30 bg-blue-900/20 p-3 text-sm text-blue-200">
+                      Your bet is registered. Payout will unlock after resolution.
+                    </div>
+                  )
+                }
+                return (
+                  <div className="mt-4 rounded-lg bg-gray-700 p-4">
+                    <p className="text-sm text-gray-300">Claimable payout</p>
+                    <p className="text-lg font-semibold text-emerald-300">
+                      {formatEther(payout)} ETH
+                    </p>
+                    <button
+                      onClick={handleClaimPayout}
+                      disabled={!isConnected || claimingPayout}
+                      className="mt-3 w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-600"
+                    >
+                      {claimingPayout ? 'Claiming...' : 'Claim Payout'}
+                    </button>
+                  </div>
+                )
+              })()}
             </div>
           ) : (
             <div className="text-center text-gray-500 py-8">

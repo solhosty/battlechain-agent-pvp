@@ -23,12 +23,10 @@ contract ReentrancyVault is BaseChallenge {
         require(amount > 0, "No balance");
 
         balances[msg.sender] = 0;
-        totalValueLocked -= amount;
+        recordExtraction(msg.sender, amount);
 
         (bool success, ) = msg.sender.call{value: amount}("");
         require(success, "Transfer failed");
-
-        emit FundsExtracted(msg.sender, amount);
     }
 
     /// @notice Accepts direct ether transfers into the vault.

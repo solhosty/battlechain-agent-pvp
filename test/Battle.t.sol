@@ -53,6 +53,10 @@ contract DrainAgent is IAgent {
         return name;
     }
 
+    function setOwner(address newOwner) external {
+        owner = newOwner;
+    }
+
     receive() external payable {}
 }
 
@@ -175,13 +179,23 @@ contract BattleTest is Test {
         battle.resolveBattle();
         
         uint256 initialBalance = player2.balance;
+        uint256 creatorBalance = arena.balance;
         
         // Claim prize as winner
         vm.prank(player2);
         battle.claimPrize();
-        
+
+        assertEq(battle.s_pendingWithdrawals(player2), 7 ether);
+        assertEq(battle.s_pendingWithdrawals(arena), 3 ether);
+
+        vm.prank(player2);
+        battle.withdraw();
+        vm.prank(arena);
+        battle.withdraw();
+
         // Winner gets 70%
         assertEq(player2.balance - initialBalance, 7 ether);
+        assertEq(arena.balance - creatorBalance, 3 ether);
         assertEq(uint256(battle.getState()), uint256(IBattle.BattleState.CLAIMED));
     }
 
@@ -223,5 +237,87 @@ contract BattleTest is Test {
         
         // Even though agent1 failed, agent2 should still be winner
         assertEq(battle.getWinner(), address(agent2));
+    }
+
+    function testOwnerSnapshotClaimAuthorization() public {
+        DrainAgent agent1 = new DrainAgent("Agent1", player1, true, 1 ether);
+        DrainAgent agent2 = new DrainAgent("Agent2", player2, true, 0);
+
+        vm.deal(arena, 5 ether);
+        vm.startPrank(arena);
+        battle.fundPrizePool{value: 5 ether}();
+        battle.registerAgent(address(agent1));
+        battle.registerAgent(address(agent2));
+        battle.startBattle();
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + DEADLINE + 1);
+        vm.prank(arena);
+        battle.resolveBattle();
+
+        agent1.setOwner(player3);
+
+        vm.prank(player3);
+        vm.expectRevert("Not winner");
+        battle.claimPrize();
+
+        vm.prank(player1);
+        battle.claimPrize();
+        assertEq(battle.s_pendingWithdrawals(player1), 3.5 ether);
+    }
+
+    function testRegisterAgentOwnerReadReverts() public {
+        MockAgent agent = new MockAgent("Agent1", player1, true, 0);
+        agent.setOwnerRevert(true);
+
+        vm.prank(arena);
+        vm.expectRevert("Invalid agent");
+        battle.registerAgent(address(agent));
+    }
+
+    function testResolveBattleNoWinner() public {
+        MockAgent agent1 = new MockAgent("Agent1", player1, true, 0);
+        MockAgent agent2 = new MockAgent("Agent2", player2, true, 0);
+
+        vm.deal(arena, 4 ether);
+        vm.startPrank(arena);
+        battle.fundPrizePool{value: 4 ether}();
+        battle.registerAgent(address(agent1));
+        battle.registerAgent(address(agent2));
+        battle.startBattle();
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + DEADLINE + 1);
+        vm.prank(arena);
+        battle.resolveBattle();
+
+        assertEq(battle.getWinner(), address(0));
+        assertEq(uint256(battle.getState()), uint256(IBattle.BattleState.CLAIMED));
+        assertEq(battle.s_pendingWithdrawals(arena), 4 ether);
+
+        vm.prank(player1);
+        vm.expectRevert("No winner");
+        battle.claimPrize();
+    }
+
+    function testResolveBattleBalanceIncreaseClamp() public {
+        MockAgent agent1 = new MockAgent("Agent1", player1, true, 0);
+        MockAgent agent2 = new MockAgent("Agent2", player2, true, 0);
+
+        vm.deal(address(agent1), 1 ether);
+        agent1.setIncreaseBalanceAmount(1 ether);
+
+        vm.startPrank(arena);
+        battle.registerAgent(address(agent1));
+        battle.registerAgent(address(agent2));
+        battle.startBattle();
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + DEADLINE + 1);
+        vm.prank(arena);
+        battle.resolveBattle();
+
+        assertEq(battle.winningAmount(), 0);
+        assertEq(battle.getWinner(), address(0));
     }
 }
