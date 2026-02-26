@@ -222,7 +222,7 @@ export const useAgentDeploy = () => {
       throw new Error('Wallet account unavailable. Reconnect wallet and try again.')
     }
 
-    let nonce = await walletClient.getTransactionCount({
+    let nonce = await publicClient.getTransactionCount({
       address: sender,
       blockTag: 'pending',
     })
@@ -243,7 +243,7 @@ export const useAgentDeploy = () => {
         }
 
         if (shouldRefreshNonce(message)) {
-          nonce = await walletClient.getTransactionCount({
+          nonce = await publicClient.getTransactionCount({
             address: sender,
             blockTag: 'pending',
           })
