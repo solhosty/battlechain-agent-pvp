@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { Abi, Address } from 'viem'
+import { encodeDeployData, parseEventLogs } from 'viem'
 import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
 import {
-  addSavedAgent,
-  loadSavedAgents,
-  registerAgent as registerAgentOnArena,
-  removeSavedAgent,
+  AGENT_CREATED_EVENT,
+  createAgent,
+  getAgentsByOwner,
+  registerAgentWithFactory,
 } from '@/utils/battlechain'
 import type { GasOverrides } from '@/utils/battlechain'
 import { formatWalletError } from '@/utils/walletErrors'
@@ -144,9 +145,26 @@ export const useAgentDeploy = () => {
     }
   })()
 
+  const refreshAgents = async (owner: Address) => {
+    if (!publicClient) {
+      return []
+    }
+
+    const agents = await getAgentsByOwner(publicClient, owner)
+    setSavedAgents(agents)
+    return agents
+  }
+
   useEffect(() => {
-    setSavedAgents(loadSavedAgents())
-  }, [])
+    if (!account || !publicClient) {
+      setSavedAgents([])
+      return
+    }
+
+    refreshAgents(account).catch((error) => {
+      console.error('Failed to load agents:', error)
+    })
+  }, [account, publicClient])
 
   const validateWalletClients = () => {
     if (!walletStatus.ready) {
@@ -331,27 +349,45 @@ export const useAgentDeploy = () => {
         )
       }
 
+      const sender = account ?? walletClient.account?.address
+      if (!sender) {
+        throw new Error('Wallet account unavailable. Reconnect wallet and try again.')
+      }
+
+      const encodedBytecode = encodeDeployData({
+        abi,
+        bytecode,
+        args: [sender],
+      })
+
       const hash = await sendWithRetry((overrides) =>
-        walletClient.deployContract({
-          abi,
-          bytecode,
-          ...overrides,
-        }),
+        createAgent(walletClient, encodedBytecode, overrides),
       )
       setDeployPhase('submitted')
       setDeployPhase('confirming')
       const receipt = await waitForReceiptWithTimeout(hash)
 
-      if (!receipt.contractAddress) {
-        throw new Error('Contract address not found')
+      const parsedLogs = parseEventLogs({
+        abi: [AGENT_CREATED_EVENT],
+        logs: receipt.logs,
+      })
+      const created = parsedLogs.find(
+        (log) => log.eventName === 'AgentCreated',
+      )
+      const agentAddress = created?.args?.agent as Address | undefined
+
+      if (!agentAddress) {
+        throw new Error('Agent address not found in receipt logs')
       }
 
-      setDeployedAddress(receipt.contractAddress)
+      setDeployedAddress(agentAddress)
       setCompilationStatus('deployed')
-      setSavedAgents(addSavedAgent(receipt.contractAddress))
+      await refreshAgents(sender).catch((error) => {
+        console.error('Failed to refresh agents after deploy:', error)
+      })
       setDeployPhase('success')
 
-      return receipt.contractAddress
+      return agentAddress
     } catch (error) {
       const message = formatWalletError(error)
       console.error('Deployment failed:', message)
@@ -387,7 +423,7 @@ export const useAgentDeploy = () => {
       }
 
       const hash = await sendWithRetry((overrides) =>
-        registerAgentOnArena(
+        registerAgentWithFactory(
           walletClient,
           battleId,
           agentAddress,
@@ -429,7 +465,11 @@ export const useAgentDeploy = () => {
     registerPhase,
     savedAgents,
     removeSavedAgent: (address: Address) => {
-      setSavedAgents(removeSavedAgent(address))
+      setSavedAgents((current) =>
+        current.filter(
+          (agent) => agent.toLowerCase() !== address.toLowerCase(),
+        ),
+      )
     },
     generateAgent,
     compileAgent,

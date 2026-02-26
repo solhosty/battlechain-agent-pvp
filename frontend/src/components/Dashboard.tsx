@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatEther } from 'viem'
 import type { Address } from 'viem'
@@ -9,12 +9,9 @@ import { useBattleChain } from '@/hooks/useBattleChain'
 import {
   createBattle,
   claimPrize,
-  discoverAgentsByOwner,
+  getAgentsByOwner,
   getGasOverrides,
-  loadSavedAgents,
-  mergeSavedAgents,
-  persistSavedAgents,
-  registerAgent,
+  registerAgentWithFactory,
 } from '@/utils/battlechain'
 import { ChallengeType } from '@/types/contracts'
 import { toast } from '@/components/ui/toast'
@@ -60,7 +57,6 @@ const DashboardContent: React.FC = () => {
   const rpcUrl = process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL
   const router = useRouter()
   const [savedAgents, setSavedAgents] = useState<Address[]>([])
-  const [savedAgentsLoaded, setSavedAgentsLoaded] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState<Address | ''>('')
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -195,65 +191,38 @@ const DashboardContent: React.FC = () => {
     }
   }, [savedAgents, selectedAgent])
 
+  const refreshAgents = useCallback(async () => {
+    if (!publicClient || !account) {
+      return
+    }
+
+    try {
+      const agents = await getAgentsByOwner(publicClient, account)
+      setSavedAgents(agents)
+    } catch (error) {
+      console.error('Failed to refresh agents:', error)
+    }
+  }, [account, publicClient])
+
   useEffect(() => {
-    const refreshAgents = () => {
-      setSavedAgents(loadSavedAgents())
-      setSavedAgentsLoaded(true)
+    if (!isConnected || !account || !publicClient) {
+      setSavedAgents([])
+      return
     }
 
     refreshAgents()
-    window.addEventListener('focus', refreshAgents)
-    window.addEventListener('storage', refreshAgents)
-
-    return () => {
-      window.removeEventListener('focus', refreshAgents)
-      window.removeEventListener('storage', refreshAgents)
-    }
-  }, [])
+  }, [account, isConnected, publicClient, refreshAgents])
 
   useEffect(() => {
-    if (!isConnected || !account) {
-      return
+    const handleFocus = () => {
+      refreshAgents()
     }
 
-    if (!publicClient) {
-      console.error('Agent discovery skipped: missing public client', {
-        account,
-      })
-      return
-    }
-
-    if (!savedAgentsLoaded) {
-      return
-    }
-
-    console.info('[AgentDiscovery] start', {
-      account,
-      isConnected,
-      chainId: publicClient?.chain?.id,
-    })
-
-    let active = true
-
-    discoverAgentsByOwner(publicClient, account)
-      .then((found) => {
-        const merged = mergeSavedAgents(savedAgents, found)
-        persistSavedAgents(merged)
-        console.info('[AgentDiscovery] complete', {
-          saved: savedAgents.length,
-          discovered: found.length,
-          merged: merged.length,
-        })
-        if (active) {
-          setSavedAgents(merged)
-        }
-      })
-      .catch((error) => console.error('Agent discovery failed', error))
-
+    window.addEventListener('focus', handleFocus)
     return () => {
-      active = false
+      window.removeEventListener('focus', handleFocus)
     }
-  }, [account, isConnected, publicClient, savedAgents, savedAgentsLoaded])
+  }, [refreshAgents])
 
   const handleAssignAgent = async (battleId: bigint) => {
     if (!walletClient) {
@@ -279,7 +248,7 @@ const DashboardContent: React.FC = () => {
       }
 
       const gasOverrides = await getGasOverrides(publicClient)
-      await registerAgent(
+      await registerAgentWithFactory(
         walletClient,
         battleId,
         selectedAgent as Address,
