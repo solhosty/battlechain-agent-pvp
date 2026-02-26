@@ -1,0 +1,221 @@
+'use client'
+
+import React, { useMemo, useState } from 'react'
+import { formatEther } from 'viem'
+import { useWalletClient } from 'wagmi'
+import { useBattleChain } from '@/hooks/useBattleChain'
+import { claimPayout, claimPrize, withdrawPending } from '@/utils/battlechain'
+import { toast } from '@/components/ui/toast'
+
+const BattleHistory: React.FC = () => {
+  const {
+    battles,
+    claimablePrizesByBattle,
+    betPayoutsByBattle,
+    pendingWithdrawalsByBattle,
+    participationByBattle,
+  } = useBattleChain()
+  const { data: walletClient } = useWalletClient()
+  const [processing, setProcessing] = useState<string | null>(null)
+
+  const history = useMemo(() => {
+    return battles.filter((battle) => {
+      const battleKey = battle.id.toString()
+      const participation = participationByBattle[battleKey]
+      const hasClaimable =
+        (claimablePrizesByBattle[battleKey] ?? 0n) > 0n ||
+        (betPayoutsByBattle[battleKey] ?? 0n) > 0n ||
+        (pendingWithdrawalsByBattle[battleKey] ?? 0n) > 0n
+
+      return (
+        (battle.state === 'Resolved' || battle.state === 'Claimed') &&
+        (participation?.asOwner || participation?.asBettor || hasClaimable)
+      )
+    })
+  }, [
+    battles,
+    betPayoutsByBattle,
+    claimablePrizesByBattle,
+    participationByBattle,
+    pendingWithdrawalsByBattle,
+  ])
+
+  const handleClaimPrize = async (battleId: bigint) => {
+    if (!walletClient) {
+      toast.error('Connect your wallet to claim')
+      return
+    }
+    setProcessing(`prize-${battleId.toString()}`)
+    try {
+      await claimPrize(walletClient, battleId)
+      toast.success('Prize claim submitted')
+    } catch (error) {
+      console.error('Prize claim failed:', error)
+      toast.error('Prize claim failed')
+    } finally {
+      setProcessing(null)
+    }
+  }
+
+  const handleClaimPayout = async (battleId: bigint) => {
+    if (!walletClient) {
+      toast.error('Connect your wallet to claim')
+      return
+    }
+    setProcessing(`payout-${battleId.toString()}`)
+    try {
+      await claimPayout(walletClient, battleId)
+      toast.success('Payout claimed')
+    } catch (error) {
+      console.error('Payout claim failed:', error)
+      toast.error('Payout claim failed')
+    } finally {
+      setProcessing(null)
+    }
+  }
+
+  const handleWithdraw = async (battleId: bigint, battleAddress: string) => {
+    if (!walletClient) {
+      toast.error('Connect your wallet to withdraw')
+      return
+    }
+    setProcessing(`withdraw-${battleId.toString()}`)
+    try {
+      await withdrawPending(walletClient, battleAddress as `0x${string}`)
+      toast.success('Withdrawal submitted')
+    } catch (error) {
+      console.error('Withdrawal failed:', error)
+      toast.error('Withdrawal failed')
+    } finally {
+      setProcessing(null)
+    }
+  }
+
+  if (history.length === 0) {
+    return (
+      <div className="rounded-2xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-400">
+        No resolved battles yet. Claims will appear once a battle finishes.
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-2xl border border-gray-800 bg-gray-900/50 p-6">
+      <h2 className="text-2xl font-semibold text-gray-100">Battle History</h2>
+      <p className="mt-2 text-sm text-gray-400">
+        Resolved battles you participated in, with claim status.
+      </p>
+
+      <div className="mt-6 space-y-4">
+        {history.map((battle) => {
+          const battleKey = battle.id.toString()
+          const claimablePrize = claimablePrizesByBattle[battleKey] ?? 0n
+          const betPayout = betPayoutsByBattle[battleKey] ?? 0n
+          const pendingWithdrawal = pendingWithdrawalsByBattle[battleKey] ?? 0n
+          const participation = participationByBattle[battleKey]
+
+          return (
+            <div
+              key={battle.id}
+              className="rounded-xl border border-gray-800 bg-gray-950/40 p-5"
+            >
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-100">
+                    Battle #{battle.id.toString()}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Winner: {battle.winner ? `${battle.winner.slice(0, 8)}...` : 'None'}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  {claimablePrize > 0n ? (
+                    <span className="rounded-full bg-emerald-600/20 px-3 py-1 text-emerald-200">
+                      Prize claimable
+                    </span>
+                  ) : null}
+                  {betPayout > 0n ? (
+                    <span className="rounded-full bg-blue-600/20 px-3 py-1 text-blue-200">
+                      Bet payout ready
+                    </span>
+                  ) : null}
+                  {pendingWithdrawal > 0n ? (
+                    <span className="rounded-full bg-purple-600/20 px-3 py-1 text-purple-200">
+                      Withdrawal ready
+                    </span>
+                  ) : null}
+                  {claimablePrize === 0n && betPayout === 0n && pendingWithdrawal === 0n ? (
+                    <span className="rounded-full bg-gray-700/50 px-3 py-1 text-gray-300">
+                      {participation?.betClaimed ? 'Claimed' : 'No rewards'}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+                <div className="rounded-lg bg-gray-900/70 p-3">
+                  <p className="text-xs text-gray-400">Prize claim</p>
+                  <p className="text-lg font-semibold text-emerald-200">
+                    {formatEther(claimablePrize)} ETH
+                  </p>
+                </div>
+                <div className="rounded-lg bg-gray-900/70 p-3">
+                  <p className="text-xs text-gray-400">Bet payout</p>
+                  <p className="text-lg font-semibold text-blue-200">
+                    {formatEther(betPayout)} ETH
+                  </p>
+                </div>
+                <div className="rounded-lg bg-gray-900/70 p-3">
+                  <p className="text-xs text-gray-400">Pending withdrawal</p>
+                  <p className="text-lg font-semibold text-purple-200">
+                    {formatEther(pendingWithdrawal)} ETH
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                {claimablePrize > 0n ? (
+                  <button
+                    onClick={() => handleClaimPrize(battle.id)}
+                    disabled={processing === `prize-${battle.id.toString()}`}
+                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-600"
+                  >
+                    {processing === `prize-${battle.id.toString()}`
+                      ? 'Claiming...'
+                      : 'Claim prize'}
+                  </button>
+                ) : null}
+                {betPayout > 0n ? (
+                  <button
+                    onClick={() => handleClaimPayout(battle.id)}
+                    disabled={processing === `payout-${battle.id.toString()}`}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-600"
+                  >
+                    {processing === `payout-${battle.id.toString()}`
+                      ? 'Claiming...'
+                      : 'Claim payout'}
+                  </button>
+                ) : null}
+                {pendingWithdrawal > 0n ? (
+                  <button
+                    onClick={() =>
+                      handleWithdraw(battle.id, battle.address)
+                    }
+                    disabled={processing === `withdraw-${battle.id.toString()}`}
+                    className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700 disabled:bg-gray-600"
+                  >
+                    {processing === `withdraw-${battle.id.toString()}`
+                      ? 'Withdrawing...'
+                      : 'Withdraw'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export default BattleHistory

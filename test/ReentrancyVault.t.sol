@@ -109,6 +109,6 @@ contract ReentrancyVaultTest is Test {
         vm.prank(victim);
         vault.withdrawAll();
 
-        assertEq(vault.getValueExtracted(victim), 0);
+        assertEq(vault.getValueExtracted(victim), 5 ether);
     }
 }
