@@ -145,11 +145,6 @@ const DashboardContent: React.FC = () => {
       .then((found) => {
         const merged = mergeSavedAgents(savedAgents, found)
         persistSavedAgents(merged)
-        console.info('[AgentDiscovery] complete', {
-          saved: savedAgents.length,
-          discovered: found.length,
-          merged: merged.length,
-        })
         if (active) {
           setSavedAgents(merged)
         }
