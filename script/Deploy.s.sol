@@ -27,6 +27,9 @@ contract DeployScript is Script {
             true
         );
         
+        AgentFactory agentFactory = new AgentFactory();
+        console.log("AgentFactory deployed at:", address(agentFactory));
+
         // Deploy Arena
         Arena arena = new Arena(
             attackRegistry,
@@ -36,9 +39,7 @@ contract DeployScript is Script {
         console.log("Arena deployed at:", address(arena));
 
         challengeFactory.setAuthorizedCaller(address(arena), true);
-
-        AgentFactory agentFactory = new AgentFactory(address(arena));
-        console.log("AgentFactory deployed at:", address(agentFactory));
+        agentFactory.setAuthorizedCaller(address(arena), true);
         
         // Deploy SpectatorBetting
         SpectatorBetting betting = new SpectatorBetting(address(arena));
