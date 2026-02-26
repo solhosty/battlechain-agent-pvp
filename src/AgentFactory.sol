@@ -1,45 +1,83 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "./Arena.sol";
+import "./interfaces/IAgentFactory.sol";
 
-contract AgentFactory {
-    address public immutable arena;
-    mapping(address => address[]) private agentsByOwner;
-    mapping(address => address) private agentOwner;
+contract AgentFactory is IAgentFactory {
+    address public owner;
+    mapping(address => bool) public authorizedCallers;
 
-    event AgentCreated(address indexed agent, address indexed owner);
+    uint256 public nextAgentId;
+    uint256[] public agentIds;
+    mapping(address => address[]) public agentsByOwner;
+    mapping(uint256 => address) public agentById;
 
-    /// @notice Sets the arena that receives agent registrations.
-    constructor(address arenaAddress) {
-        arena = arenaAddress;
+    event AgentCreated(
+        uint256 indexed agentId,
+        address indexed agent,
+        address indexed owner,
+        string name
+    );
+    event AuthorizedCallerUpdated(address indexed caller, bool authorized);
+    event OwnerUpdated(address indexed newOwner);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner");
+        _;
     }
 
-    /// @notice Deploys an agent from creation bytecode and records ownership.
-    function createAgent(bytes memory bytecode) external returns (address agent) {
-        require(bytecode.length > 0, "Empty bytecode");
+    modifier onlyAuthorizedCaller() {
+        require(authorizedCallers[msg.sender], "Not authorized");
+        _;
+    }
+
+    constructor() {
+        owner = msg.sender;
+        nextAgentId = 1;
+    }
+
+    /// @notice Authorizes or revokes a caller for deployments.
+    function setAuthorizedCaller(address caller, bool authorized) external onlyOwner {
+        authorizedCallers[caller] = authorized;
+        emit AuthorizedCallerUpdated(caller, authorized);
+    }
+
+    /// @notice Transfers contract ownership.
+    function setOwner(address newOwner) external onlyOwner {
+        owner = newOwner;
+        emit OwnerUpdated(newOwner);
+    }
+
+    /// @notice Deploys an agent from creation bytecode.
+    function createAgent(
+        string memory name,
+        bytes memory bytecode
+    ) external onlyAuthorizedCaller returns (address agent) {
+        require(bytecode.length != 0, "Empty bytecode");
+        uint256 agentId = nextAgentId;
+        bytes32 salt = keccak256(abi.encode(msg.sender, name, agentId));
+
         assembly {
-            agent := create(0, add(bytecode, 0x20), mload(bytecode))
+            agent := create2(0, add(bytecode, 0x20), mload(bytecode), salt)
         }
-        require(agent != address(0), "Deploy failed");
-        agentOwner[agent] = msg.sender;
+
+        require(agent != address(0), "Create2 failed");
+
+        nextAgentId = agentId + 1;
+        agentIds.push(agentId);
+        agentById[agentId] = agent;
         agentsByOwner[msg.sender].push(agent);
-        emit AgentCreated(agent, msg.sender);
+
+        emit AgentCreated(agentId, agent, msg.sender, name);
     }
 
     /// @notice Returns agents deployed by the given owner.
-    function getAgentsByOwner(address owner) external view returns (address[] memory) {
-        return agentsByOwner[owner];
+    function getAgentsByOwner(address ownerAddress) external view returns (address[] memory) {
+        return agentsByOwner[ownerAddress];
     }
 
-    /// @notice Returns the recorded owner for an agent.
-    function getAgentOwner(address agent) external view returns (address) {
-        return agentOwner[agent];
-    }
-
-    /// @notice Registers an agent for a battle through the arena.
-    function registerAgent(uint256 battleId, address agent) external {
-        require(agentOwner[agent] == msg.sender, "Not agent owner");
-        Arena(arena).registerAgent(battleId, agent);
+    /// @notice Returns the total number of agents deployed.
+    function getAgentCount() external view returns (uint256) {
+        return agentIds.length;
     }
 }

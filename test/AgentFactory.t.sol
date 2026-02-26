@@ -3,111 +3,89 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 import "../src/AgentFactory.sol";
-import "../src/Arena.sol";
-import "../src/Battle.sol";
-import "../src/ChallengeFactory.sol";
-import "../src/interfaces/IChallengeFactory.sol";
-import "./mocks/MockAttackRegistry.sol";
 import "./mocks/MockAgent.sol";
 
 contract AgentFactoryTest is Test {
     AgentFactory public agentFactory;
-    Arena public arena;
-    MockAttackRegistry public attackRegistry;
-    ChallengeFactory public challengeFactory;
 
     address public owner = address(1);
-    address public player1 = address(2);
-    address public player2 = address(3);
-
-    uint256 public constant ENTRY_FEE = 1 ether;
-    uint256 public constant BATTLE_DURATION = 1 days;
+    address public authorizedCaller = address(2);
+    address public unauthorizedCaller = address(3);
 
     function setUp() public {
-        vm.startPrank(owner);
+        vm.prank(owner);
+        agentFactory = new AgentFactory();
 
-        attackRegistry = new MockAttackRegistry();
-        challengeFactory = new ChallengeFactory();
-        challengeFactory.setChallengeTypeEnabled(
-            IChallengeFactory.ChallengeType.REENTRANCY_VAULT,
-            true
-        );
-
-        arena = new Arena(
-            address(attackRegistry),
-            address(0),
-            address(challengeFactory)
-        );
-        challengeFactory.setAuthorizedCaller(address(arena), true);
-
-        agentFactory = new AgentFactory(address(arena));
-
-        vm.stopPrank();
+        vm.prank(owner);
+        agentFactory.setAuthorizedCaller(authorizedCaller, true);
     }
 
-    function testCreateAgentRecordsOwner() public {
+    function testCreateAgentStoresByOwner() public {
         bytes memory bytecode = abi.encodePacked(
             type(MockAgent).creationCode,
-            abi.encode("Agent1", player1, true, 0)
+            abi.encode("Agent1", owner, true, 0)
         );
 
-        vm.prank(player1);
-        address agent = agentFactory.createAgent(bytecode);
+        vm.prank(authorizedCaller);
+        address agent = agentFactory.createAgent("Agent1", bytecode);
 
-        assertEq(agentFactory.getAgentOwner(agent), player1);
-
-        address[] memory agents = agentFactory.getAgentsByOwner(player1);
+        address[] memory agents = agentFactory.getAgentsByOwner(authorizedCaller);
         assertEq(agents.length, 1);
         assertEq(agents[0], agent);
+        assertEq(agentFactory.agentById(1), agent);
+        assertEq(agentFactory.agentIds(0), 1);
+        assertEq(agentFactory.getAgentCount(), 1);
     }
 
-    function testRegisterAgentByOwner() public {
-        vm.deal(player1, 2 ether);
-        vm.prank(player1);
-        uint256 battleId = arena.createBattle{value: ENTRY_FEE}(
-            IChallengeFactory.ChallengeType.REENTRANCY_VAULT,
-            ENTRY_FEE,
-            5,
-            BATTLE_DURATION
-        );
-
+    function testCreateAgentUnauthorizedCallerReverts() public {
         bytes memory bytecode = abi.encodePacked(
             type(MockAgent).creationCode,
-            abi.encode("Agent1", player1, true, 0)
+            abi.encode("Agent1", owner, true, 0)
         );
 
-        vm.prank(player1);
-        address agent = agentFactory.createAgent(bytecode);
-
-        vm.prank(player1);
-        agentFactory.registerAgent(battleId, agent);
-
-        Battle battle = Battle(payable(arena.getBattle(battleId)));
-        address[] memory agents = battle.getAgents();
-        assertEq(agents.length, 1);
-        assertEq(agents[0], agent);
+        vm.prank(unauthorizedCaller);
+        vm.expectRevert("Not authorized");
+        agentFactory.createAgent("Agent1", bytecode);
     }
 
-    function testRegisterAgentUnauthorized() public {
-        vm.deal(player1, 2 ether);
-        vm.prank(player1);
-        uint256 battleId = arena.createBattle{value: ENTRY_FEE}(
-            IChallengeFactory.ChallengeType.REENTRANCY_VAULT,
-            ENTRY_FEE,
-            5,
-            BATTLE_DURATION
-        );
+    function testCreateAgentEmptyBytecodeReverts() public {
+        vm.prank(authorizedCaller);
+        vm.expectRevert("Empty bytecode");
+        agentFactory.createAgent("Agent1", new bytes(0));
+    }
 
+    function testCreateAgentDeterministicAddress() public {
         bytes memory bytecode = abi.encodePacked(
             type(MockAgent).creationCode,
-            abi.encode("Agent1", player1, true, 0)
+            abi.encode("Agent1", owner, true, 0)
         );
 
-        vm.prank(player1);
-        address agent = agentFactory.createAgent(bytecode);
+        bytes32 salt = keccak256(abi.encode(authorizedCaller, "Agent1", uint256(1)));
+        address expected = _computeCreate2Address(
+            salt,
+            keccak256(bytecode),
+            address(agentFactory)
+        );
 
-        vm.prank(player2);
-        vm.expectRevert("Not agent owner");
-        agentFactory.registerAgent(battleId, agent);
+        vm.prank(authorizedCaller);
+        address agent = agentFactory.createAgent("Agent1", bytecode);
+
+        assertEq(agent, expected);
+    }
+
+    function _computeCreate2Address(
+        bytes32 salt,
+        bytes32 bytecodeHash,
+        address deployer
+    ) internal pure returns (address) {
+        return address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(bytes1(0xff), deployer, salt, bytecodeHash)
+                    )
+                )
+            )
+        );
     }
 }
