@@ -3,10 +3,12 @@ import type { Abi, Address } from 'viem'
 import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
 import {
   addSavedAgent,
+  getGasOverrides,
   loadSavedAgents,
   registerAgent as registerAgentOnArena,
   removeSavedAgent,
 } from '@/utils/battlechain'
+import { formatWalletError } from '@/utils/walletErrors'
 
 type CompilationStatus =
   | 'idle'
@@ -188,7 +190,7 @@ export const useAgentDeploy = () => {
 
       return code
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = formatWalletError(error)
       console.error('Failed to generate agent:', message)
       setError(message)
       setCompilationStatus('error')
@@ -218,7 +220,7 @@ export const useAgentDeploy = () => {
       setCompilationStatus('compiled')
       return response
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = formatWalletError(error)
       console.error('Compilation failed:', message)
       setError(message)
       setCompilationStatus('error')
@@ -243,9 +245,11 @@ export const useAgentDeploy = () => {
         )
       }
 
+      const gasOverrides = await getGasOverrides(publicClient)
       const hash = await walletClient.deployContract({
         abi,
         bytecode,
+        ...gasOverrides,
       })
       setDeployPhase('submitted')
       setDeployPhase('confirming')
@@ -262,7 +266,7 @@ export const useAgentDeploy = () => {
 
       return receipt.contractAddress
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = formatWalletError(error)
       console.error('Deployment failed:', message)
       setError(message)
       setCompilationStatus('error')
@@ -295,10 +299,12 @@ export const useAgentDeploy = () => {
         )
       }
 
+      const gasOverrides = await getGasOverrides(publicClient)
       const hash = await registerAgentOnArena(
         walletClient,
         battleId,
         agentAddress,
+        gasOverrides,
       )
       setRegisterPhase('submitted')
       setRegisterPhase('confirming')
@@ -308,7 +314,7 @@ export const useAgentDeploy = () => {
 
       return hash
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = formatWalletError(error)
       console.error('Registration failed:', message)
       setError(message)
       setRegisterPhase(

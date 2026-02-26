@@ -1,5 +1,5 @@
 import type { Abi, Address, PublicClient, WalletClient } from 'viem'
-import { parseAbiItem, parseEther } from 'viem'
+import { parseAbiItem, parseEther, parseGwei } from 'viem'
 import ArenaAbi from '@/abis/Arena.json'
 import BattleAbi from '@/abis/Battle.json'
 import SpectatorBettingAbi from '@/abis/SpectatorBetting.json'
@@ -25,6 +25,53 @@ const AGENT_REGISTERED_EVENT_SIGNATURE =
 export const AGENT_REGISTERED_EVENT = parseAbiItem(
   AGENT_REGISTERED_EVENT_SIGNATURE,
 )
+
+export type GasOverrides = {
+  maxFeePerGas?: bigint
+  maxPriorityFeePerGas?: bigint
+}
+
+const parseGweiEnv = (value: string | undefined): bigint | undefined => {
+  if (!value) {
+    return undefined
+  }
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined
+  }
+  return parseGwei(parsed.toString())
+}
+
+export const getGasOverrides = async (
+  client?: PublicClient | null,
+): Promise<GasOverrides> => {
+  if (!client) {
+    return {}
+  }
+
+  const maxFeeOverride = parseGweiEnv(process.env.NEXT_PUBLIC_GAS_MAX_FEE_GWEI)
+  const priorityOverride = parseGweiEnv(
+    process.env.NEXT_PUBLIC_GAS_PRIORITY_FEE_GWEI,
+  )
+
+  if (maxFeeOverride && priorityOverride) {
+    return {
+      maxFeePerGas: maxFeeOverride,
+      maxPriorityFeePerGas: priorityOverride,
+    }
+  }
+
+  const fees = await client.estimateFeesPerGas()
+  const multiplier = Number(process.env.NEXT_PUBLIC_GAS_FEE_MULTIPLIER ?? '1')
+  const bump = multiplier > 0 ? BigInt(Math.round(multiplier * 100)) : 100n
+
+  return {
+    maxFeePerGas:
+      maxFeeOverride ?? (fees.maxFeePerGas * bump) / 100n,
+    maxPriorityFeePerGas:
+      priorityOverride ?? (fees.maxPriorityFeePerGas * bump) / 100n,
+  }
+}
 
 const normalizeAgentAddress = (address: Address) =>
   address.toLowerCase() as Address
@@ -248,6 +295,7 @@ export const createBattle = async (
   entryFeeEth: number,
   maxAgents: number,
   duration: number,
+  gasOverrides?: GasOverrides,
 ) => {
   const entryFeeWei = parseEther(entryFeeEth.toString())
   return client.writeContract({
@@ -256,6 +304,7 @@ export const createBattle = async (
     functionName: 'createBattle',
     args: [challengeType, entryFeeWei, maxAgents, duration],
     value: entryFeeWei,
+    ...gasOverrides,
   })
 }
 
@@ -263,28 +312,40 @@ export const registerAgent = async (
   client: WalletClient,
   battleId: bigint,
   agentAddress: Address,
+  gasOverrides?: GasOverrides,
 ) =>
   client.writeContract({
     address: ARENA_ADDRESS,
     abi: ARENA_ABI,
     functionName: 'registerAgent',
     args: [battleId, agentAddress],
+    ...gasOverrides,
   })
 
-export const startBattle = async (client: WalletClient, battleId: bigint) =>
+export const startBattle = async (
+  client: WalletClient,
+  battleId: bigint,
+  gasOverrides?: GasOverrides,
+) =>
   client.writeContract({
     address: ARENA_ADDRESS,
     abi: ARENA_ABI,
     functionName: 'startBattle',
     args: [battleId],
+    ...gasOverrides,
   })
 
-export const resolveBattle = async (client: WalletClient, battleId: bigint) =>
+export const resolveBattle = async (
+  client: WalletClient,
+  battleId: bigint,
+  gasOverrides?: GasOverrides,
+) =>
   client.writeContract({
     address: ARENA_ADDRESS,
     abi: ARENA_ABI,
     functionName: 'resolveBattle',
     args: [battleId],
+    ...gasOverrides,
   })
 
 export const placeBet = async (
@@ -292,6 +353,7 @@ export const placeBet = async (
   battleId: bigint,
   agentIndex: bigint,
   amountEth: number,
+  gasOverrides?: GasOverrides,
 ) =>
   client.writeContract({
     address: BETTING_ADDRESS,
@@ -299,4 +361,5 @@ export const placeBet = async (
     functionName: 'placeBet',
     args: [battleId, agentIndex],
     value: parseEther(amountEth.toString()),
+    ...gasOverrides,
   })

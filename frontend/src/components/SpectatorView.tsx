@@ -2,11 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useWalletClient } from 'wagmi'
+import { usePublicClient, useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
-import { placeBet } from '@/utils/battlechain'
+import { getGasOverrides, placeBet } from '@/utils/battlechain'
 import type { BattleSummary } from '@/types/contracts'
 import { toast } from '@/components/ui/toast'
+import { formatWalletError } from '@/utils/walletErrors'
 
 interface Agent {
   address: string;
@@ -22,6 +23,7 @@ const SpectatorView: React.FC = () => {
     fetchBattles,
     fetchBattleAgents,
   } = useBattleChain()
+  const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
   const searchParams = useSearchParams()
   const [selectedBattle, setSelectedBattle] = useState<BattleSummary | null>(null)
@@ -85,16 +87,19 @@ const SpectatorView: React.FC = () => {
 
     setBetting(true)
     try {
+      const gasOverrides = await getGasOverrides(publicClient)
       await placeBet(
         walletClient,
         selectedBattle.id,
         BigInt(selectedAgent),
         parseFloat(betAmount),
+        gasOverrides,
       )
       toast.success('Bet placed successfully')
     } catch (error) {
-      console.error('Failed to place bet:', error)
-      toast.error('Failed to place bet')
+      const message = formatWalletError(error)
+      console.error('Failed to place bet:', message)
+      toast.error(message)
     } finally {
       setBetting(false)
     }

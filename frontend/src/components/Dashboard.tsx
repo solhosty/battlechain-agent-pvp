@@ -8,6 +8,7 @@ import { useBattleChain } from '@/hooks/useBattleChain'
 import {
   createBattle,
   discoverAgentsByOwner,
+  getGasOverrides,
   loadSavedAgents,
   mergeSavedAgents,
   persistSavedAgents,
@@ -15,6 +16,7 @@ import {
 } from '@/utils/battlechain'
 import { ChallengeType } from '@/types/contracts'
 import { toast } from '@/components/ui/toast'
+import { formatWalletError } from '@/utils/walletErrors'
 import {
   Dialog,
   DialogContent,
@@ -169,12 +171,19 @@ const DashboardContent: React.FC = () => {
     }
 
     try {
-      await registerAgent(walletClient, battleId, selectedAgent as Address)
+      const gasOverrides = await getGasOverrides(publicClient)
+      await registerAgent(
+        walletClient,
+        battleId,
+        selectedAgent as Address,
+        gasOverrides,
+      )
       toast.success('Agent registered for battle')
       fetchBattles()
     } catch (error) {
-      console.error('Failed to assign agent:', error)
-      toast.error('Failed to assign agent')
+      const message = formatWalletError(error)
+      console.error('Failed to assign agent:', message)
+      toast.error(message)
     }
   }
 
@@ -237,12 +246,14 @@ const DashboardContent: React.FC = () => {
     setCreatePhase('awaiting_wallet')
 
     try {
+      const gasOverrides = await getGasOverrides(publicClient)
       const hash = await createBattle(
         walletClient,
         createForm.challengeType,
         entryFee,
         maxAgents,
         durationSeconds,
+        gasOverrides,
       )
       setCreatePhase('submitted')
       toast('Battle submitted. Waiting for confirmation...')
@@ -253,7 +264,7 @@ const DashboardContent: React.FC = () => {
       setCreateOpen(false)
       fetchBattles()
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = formatWalletError(error)
       console.error('Failed to create battle:', message)
       setCreatePhase(
         message.toLowerCase().includes('timeout') ? 'timeout' : 'error',
