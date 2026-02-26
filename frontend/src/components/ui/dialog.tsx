@@ -57,17 +57,24 @@ export const DialogTrigger = React.forwardRef<
 
 DialogTrigger.displayName = 'DialogTrigger'
 
-export const DialogContent = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, children, ...props }, ref) => {
+export interface DialogContentProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: 'default' | 'sheet'
+}
+
+export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
+  ({ className, children, variant = 'default', ...props }, ref) => {
   const context = React.useContext(DialogContext)
   if (!context?.open) {
     return null
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      className={cn(
+        'fixed inset-0 z-50 flex items-center justify-center p-4',
+        variant === 'sheet' && 'items-stretch justify-end p-0',
+      )}
+    >
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={() => context.setOpen(false)}
@@ -77,6 +84,8 @@ export const DialogContent = React.forwardRef<
         ref={ref}
         className={cn(
           'relative z-10 w-full max-w-lg rounded-lg border border-border bg-card p-6 text-card-foreground shadow-lg',
+          variant === 'sheet' &&
+            'h-full max-w-md rounded-none border-l border-border shadow-card',
           className,
         )}
         {...props}
@@ -85,7 +94,8 @@ export const DialogContent = React.forwardRef<
       </div>
     </div>
   )
-})
+  },
+)
 
 DialogContent.displayName = 'DialogContent'
 

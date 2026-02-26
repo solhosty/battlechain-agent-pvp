@@ -6,6 +6,7 @@ import { useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
 import { claimPayout, claimPrize, withdrawPending } from '@/utils/battlechain'
 import { toast } from '@/components/ui/toast'
+import { Heading, Label, Text } from '@/components/ui/typography'
 
 const BattleHistory: React.FC = () => {
   const {
@@ -93,18 +94,20 @@ const BattleHistory: React.FC = () => {
 
   if (history.length === 0) {
     return (
-      <div className="rounded-2xl border border-gray-800 bg-gray-900/50 p-6 text-sm text-gray-400">
+      <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground shadow-soft">
         No resolved battles yet. Claims will appear once a battle finishes.
       </div>
     )
   }
 
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900/50 p-6">
-      <h2 className="text-2xl font-semibold text-gray-100">Battle History</h2>
-      <p className="mt-2 text-sm text-gray-400">
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+      <Heading as="h2" size="h2">
+        Battle History
+      </Heading>
+      <Text tone="muted" className="mt-2 text-sm">
         Resolved battles you participated in, with claim status.
-      </p>
+      </Text>
 
       <div className="mt-6 space-y-4">
         {history.map((battle) => {
@@ -117,16 +120,16 @@ const BattleHistory: React.FC = () => {
           return (
             <div
               key={battle.id}
-              className="rounded-xl border border-gray-800 bg-gray-950/40 p-5"
+              className="rounded-xl border border-border bg-background/60 p-5"
             >
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-100">
+                  <Heading as="h3" size="h3" className="text-lg">
                     Battle #{battle.id.toString()}
-                  </h3>
-                  <p className="text-sm text-gray-500">
+                  </Heading>
+                  <Text tone="muted" className="text-sm">
                     Winner: {battle.winner ? `${battle.winner.slice(0, 8)}...` : 'None'}
-                  </p>
+                  </Text>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   {claimablePrize > 0n ? (
@@ -145,7 +148,7 @@ const BattleHistory: React.FC = () => {
                     </span>
                   ) : null}
                   {claimablePrize === 0n && betPayout === 0n && pendingWithdrawal === 0n ? (
-                    <span className="rounded-full bg-gray-700/50 px-3 py-1 text-gray-300">
+                    <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
                       {participation?.betClaimed ? 'Claimed' : 'No rewards'}
                     </span>
                   ) : null}
@@ -153,21 +156,21 @@ const BattleHistory: React.FC = () => {
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
-                <div className="rounded-lg bg-gray-900/70 p-3">
-                  <p className="text-xs text-gray-400">Prize claim</p>
-                  <p className="text-lg font-semibold text-emerald-200">
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <Label className="text-[11px]">Prize claim</Label>
+                  <p className="mt-2 text-lg font-semibold text-emerald-200">
                     {formatEther(claimablePrize)} ETH
                   </p>
                 </div>
-                <div className="rounded-lg bg-gray-900/70 p-3">
-                  <p className="text-xs text-gray-400">Bet payout</p>
-                  <p className="text-lg font-semibold text-blue-200">
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <Label className="text-[11px]">Bet payout</Label>
+                  <p className="mt-2 text-lg font-semibold text-blue-200">
                     {formatEther(betPayout)} ETH
                   </p>
                 </div>
-                <div className="rounded-lg bg-gray-900/70 p-3">
-                  <p className="text-xs text-gray-400">Pending withdrawal</p>
-                  <p className="text-lg font-semibold text-purple-200">
+                <div className="rounded-lg border border-border bg-card p-3">
+                  <Label className="text-[11px]">Pending withdrawal</Label>
+                  <p className="mt-2 text-lg font-semibold text-purple-200">
                     {formatEther(pendingWithdrawal)} ETH
                   </p>
                 </div>
