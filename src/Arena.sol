@@ -5,6 +5,7 @@ import "./Battle.sol";
 import "./interfaces/IAgent.sol";
 import "./interfaces/IAttackRegistry.sol";
 import "./interfaces/IChallengeFactory.sol";
+import "./interfaces/IAgentFactory.sol";
 
 contract Arena {
     uint8 public constant MIN_AGENTS = 2;
@@ -15,6 +16,7 @@ contract Arena {
     address public immutable attackRegistry;
     address public immutable safeHarbor;
     IChallengeFactory public immutable challengeFactory;
+    address public agentFactory;
     address public owner;
     bool public paused;
     
@@ -54,12 +56,14 @@ contract Arena {
     constructor(
         address _attackRegistry,
         address _safeHarbor,
-        address _challengeFactory
+        address _challengeFactory,
+        address _agentFactory
     ) {
         owner = msg.sender;
         attackRegistry = _attackRegistry;
         safeHarbor = _safeHarbor;
         challengeFactory = IChallengeFactory(_challengeFactory);
+        agentFactory = _agentFactory;
     }
 
     /// @notice Creates a battle and funds its prize pool from msg.value.
@@ -119,6 +123,13 @@ contract Arena {
         Battle(payable(battleAddress)).registerAgent(agent);
         
         emit AgentRegistered(battleId, agent);
+    }
+
+    function createAgentForUser(
+        string memory name,
+        bytes memory bytecode
+    ) external returns (address agent) {
+        agent = IAgentFactory(agentFactory).createAgent(name, bytecode);
     }
 
     /// @notice Starts a battle once agents are registered.

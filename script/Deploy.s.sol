@@ -34,7 +34,8 @@ contract DeployScript is Script {
         Arena arena = new Arena(
             attackRegistry,
             safeHarbor,
-            address(challengeFactory)
+            address(challengeFactory),
+            address(agentFactory)
         );
         console.log("Arena deployed at:", address(arena));
 
