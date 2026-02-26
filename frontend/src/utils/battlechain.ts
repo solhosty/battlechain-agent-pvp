@@ -29,6 +29,44 @@ export const AGENT_REGISTERED_EVENT = parseAbiItem(
 const normalizeAgentAddress = (address: Address) =>
   address.toLowerCase() as Address
 
+const formatViemError = (error: unknown) =>
+  error instanceof Error ? error.message : String(error)
+
+const assertContractDeployed = async (
+  client: PublicClient,
+  address: Address | undefined,
+  label: string,
+) => {
+  if (!address) {
+    throw new Error(
+      `Missing ${label} contract address (NEXT_PUBLIC_ARENA_ADDRESS)`,
+    )
+  }
+
+  try {
+    const bytecode = await client.getBytecode({ address })
+    if (!bytecode || bytecode === '0x') {
+      throw new Error(`${label} contract not found at address ${address}`)
+    }
+  } catch (error) {
+    const formatted = formatViemError(error)
+    console.error('[ContractCheck] failed', {
+      label,
+      address,
+      chainId: client.chain?.id,
+      rpcUrl: RPC_URL,
+      error: formatted,
+    })
+    if (
+      formatted.includes('contract not found') ||
+      formatted.includes('Missing')
+    ) {
+      throw new Error(formatted)
+    }
+    throw new Error(`Failed to verify ${label} at address ${address}`)
+  }
+}
+
 const parseStoredAgents = (value: string | null): Address[] => {
   if (!value) {
     return []
@@ -114,7 +152,7 @@ export const removeSavedAgent = (address: Address): Address[] => {
 export const discoverAgentsByOwner = async (
   client: PublicClient,
   owner: Address,
-): Promise<Address[]> => {
+): Promise<{ agents: Address[]; errors: string[] }> => {
   console.info('[AgentDiscovery] request', {
     owner,
     arenaAddress: ARENA_ADDRESS,
@@ -122,16 +160,10 @@ export const discoverAgentsByOwner = async (
     rpcUrl: RPC_URL,
   })
 
-  if (!ARENA_ADDRESS) {
-    console.error('Agent discovery skipped: missing arena address', {
-      arenaAddress: ARENA_ADDRESS,
-      chainId: client.chain?.id,
-      owner,
-    })
-    return []
-  }
+  await assertContractDeployed(client, ARENA_ADDRESS, 'Arena')
 
   let logs: Array<{ args?: { agent?: Address } }>
+  const errors: string[] = []
 
   const fromBlock = 0n
   const toBlock = 'latest'
@@ -152,13 +184,16 @@ export const discoverAgentsByOwner = async (
       owner,
     })
   } catch (error) {
+    const formatted = formatViemError(error)
     console.error('Agent discovery RPC failed', {
-      error,
+      error: formatted,
       arenaAddress: ARENA_ADDRESS,
       chainId: client.chain?.id,
       owner,
+      rpcUrl: RPC_URL,
     })
-    return []
+    errors.push(`Failed to fetch Arena agent logs: ${formatted}`)
+    return { agents: [], errors }
   }
 
   const matches: Address[] = []
@@ -192,13 +227,16 @@ export const discoverAgentsByOwner = async (
           functionName: 'owner',
         })) as Address
       } catch (error) {
+        const formatted = formatViemError(error)
         console.error('Agent discovery owner check failed', {
-          error,
+          error: formatted,
           agent,
           arenaAddress: ARENA_ADDRESS,
           chainId: client.chain?.id,
           owner,
+          rpcUrl: RPC_URL,
         })
+        errors.push(`Agent contract does not respond to owner() call: ${agent}`)
         continue
       }
 
@@ -209,16 +247,18 @@ export const discoverAgentsByOwner = async (
         matches.push(normalizedAgent)
       }
     } catch (error) {
+      const formatted = formatViemError(error)
       console.error('Agent discovery parse failed', {
-        error,
+        error: formatted,
         arenaAddress: ARENA_ADDRESS,
         chainId: client.chain?.id,
         owner,
+        rpcUrl: RPC_URL,
       })
     }
   }
 
-  return matches
+  return { agents: matches, errors }
 }
 
 export const getBattleAddress = async (
@@ -243,14 +283,16 @@ export const getBattleAgents = async (
   })
 
 export const createBattle = async (
-  client: WalletClient,
+  walletClient: WalletClient,
+  publicClient: PublicClient,
   challengeType: ChallengeType,
   entryFeeEth: number,
   maxAgents: number,
   duration: number,
 ) => {
+  await assertContractDeployed(publicClient, ARENA_ADDRESS, 'Arena')
   const entryFeeWei = parseEther(entryFeeEth.toString())
-  return client.writeContract({
+  return walletClient.writeContract({
     address: ARENA_ADDRESS,
     abi: ARENA_ABI,
     functionName: 'createBattle',

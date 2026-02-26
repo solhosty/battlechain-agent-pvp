@@ -54,6 +54,7 @@ const DashboardContent: React.FC = () => {
   const router = useRouter()
   const [savedAgents, setSavedAgents] = useState<Address[]>([])
   const [savedAgentsLoaded, setSavedAgentsLoaded] = useState(false)
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null)
   const [selectedAgent, setSelectedAgent] = useState<Address | ''>('')
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -138,19 +139,33 @@ const DashboardContent: React.FC = () => {
     let active = true
 
     discoverAgentsByOwner(publicClient, account)
-      .then((found) => {
-        const merged = mergeSavedAgents(savedAgents, found)
+      .then(({ agents, errors }) => {
+        const merged = mergeSavedAgents(savedAgents, agents)
         persistSavedAgents(merged)
         console.info('[AgentDiscovery] complete', {
           saved: savedAgents.length,
-          discovered: found.length,
+          discovered: agents.length,
           merged: merged.length,
         })
+        if (errors.length > 0) {
+          console.warn('[AgentDiscovery] errors', { errors })
+        }
         if (active) {
           setSavedAgents(merged)
+          setDiscoveryError(errors[0] ?? null)
+          if (errors.length > 0) {
+            toast.error(errors[0])
+          }
         }
       })
-      .catch((error) => console.error('Agent discovery failed', error))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error)
+        console.error('Agent discovery failed', message)
+        if (active) {
+          setDiscoveryError(message)
+          toast.error(message)
+        }
+      })
 
     return () => {
       active = false
@@ -239,6 +254,7 @@ const DashboardContent: React.FC = () => {
     try {
       const hash = await createBattle(
         walletClient,
+        publicClient,
         createForm.challengeType,
         entryFee,
         maxAgents,
@@ -279,6 +295,9 @@ const DashboardContent: React.FC = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
             <h2 className="text-xl font-semibold">Saved agents</h2>
+            {discoveryError ? (
+              <p className="text-xs text-amber-400">{discoveryError}</p>
+            ) : null}
             {savedAgents.length === 0 ? (
               <p className="text-sm text-gray-400">
                 Deploy an agent in Studio to enable quick assignment.
