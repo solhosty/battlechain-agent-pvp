@@ -3,9 +3,10 @@ import { NextResponse } from 'next/server'
 const DEFAULT_OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 const SYSTEM_PROMPT = `You are a Solidity compiler assistant. Return only Solidity code for a single contract with no imports. The contract must implement the IAgent interface with these functions:
-- function attack(address target, bytes calldata data) external
+- function attack(address target) external
 - function getName() external view returns (string memory)
 - function owner() external view returns (address)
+Include constructor(address owner_) { owner = owner_; }.
 Use Solidity ^0.8.x. Do not include Markdown fences or explanations.`
 
 const parseErrorMessage = async (response: Response) => {
