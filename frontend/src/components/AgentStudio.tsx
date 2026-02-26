@@ -328,7 +328,7 @@ const AgentStudio: React.FC<AgentStudioProps> = ({ compact = false }) => {
                   </Caption>
                 )}
               </div>
-              <div className="max-h-[40vh] space-y-2 overflow-y-auto pr-2">
+              <div className="max-h-[280px] space-y-2 overflow-y-auto pr-2">
                 {savedAgents.map((agent) => (
                   <div
                     key={agent}
@@ -339,12 +339,12 @@ const AgentStudio: React.FC<AgentStudioProps> = ({ compact = false }) => {
                     }`}
                   >
                     <span
-                      className="min-w-0 max-w-[16rem] truncate font-mono text-xs text-muted-foreground"
+                      className="min-w-0 max-w-[140px] truncate font-mono text-xs text-muted-foreground"
                       title={agent}
                     >
                       {agent}
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex shrink-0 gap-2">
                       <button
                         onClick={() => setSelectedAgent(agent)}
                         className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500"

@@ -1,5 +1,5 @@
 import type { Abi, Address, PublicClient, WalletClient } from 'viem'
-import { parseAbiItem, parseEther, parseGwei } from 'viem'
+import { isAddress, parseAbiItem, parseEther, parseGwei } from 'viem'
 import ArenaAbi from '@/abis/Arena.json'
 import BattleAbi from '@/abis/Battle.json'
 import AgentFactoryAbi from '@/abis/AgentFactory.json'
@@ -152,13 +152,20 @@ export const getGasOverrides = async (
 export const getAgentsByOwner = async (
   client: PublicClient,
   owner: Address,
-) : Promise<Address[]> =>
-  client.readContract({
+): Promise<Address[]> => {
+  if (!AGENT_FACTORY_ADDRESS || !isAddress(AGENT_FACTORY_ADDRESS)) {
+    throw new Error(
+      'Missing NEXT_PUBLIC_AGENT_FACTORY_ADDRESS in frontend env config.',
+    )
+  }
+
+  return client.readContract({
     address: AGENT_FACTORY_ADDRESS,
     abi: AGENT_FACTORY_ABI,
     functionName: 'getAgentsByOwner',
     args: [owner],
   }) as Promise<Address[]>
+}
 
 export const getBattleAddress = async (
   client: PublicClient,

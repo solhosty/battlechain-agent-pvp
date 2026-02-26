@@ -314,7 +314,7 @@ const CreateBattlePanel = ({ initialOpen }: CreateBattlePanelProps) => {
       : null
 
   return (
-    <div className="space-y-6 rounded-2xl border border-border bg-card p-6 shadow-card">
+    <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-card">
       <div className="space-y-2">
         <Heading size="h2" as="h2">
           Create Battle
@@ -324,9 +324,9 @@ const CreateBattlePanel = ({ initialOpen }: CreateBattlePanelProps) => {
         </Text>
       </div>
 
-      <div className="rounded-xl border border-border bg-background/60 p-4">
+      <div className="rounded-xl border border-border bg-background/60 p-3">
         <Label>Quick defaults</Label>
-        <div className="mt-3 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+        <div className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
           <div>
             <span className="font-medium text-foreground">Challenge</span>
             <div>Reentrancy Vault</div>
@@ -346,7 +346,7 @@ const CreateBattlePanel = ({ initialOpen }: CreateBattlePanelProps) => {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
         <button
           type="button"
           onClick={handleQuickBattle}
@@ -367,14 +367,14 @@ const CreateBattlePanel = ({ initialOpen }: CreateBattlePanelProps) => {
       {phaseMessage ? <Caption className="text-sm">{phaseMessage}</Caption> : null}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent variant="sheet">
+        <DialogContent variant="sheet" className="overflow-y-auto p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle>Customize battle</DialogTitle>
             <DialogDescription>
               Tune entry fee, max agents, and duration before deployment.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-6 space-y-5">
+          <div className="mt-4 space-y-4">
             <div className="space-y-2">
               <Label as="label">Challenge type</Label>
               <select
@@ -443,7 +443,7 @@ const CreateBattlePanel = ({ initialOpen }: CreateBattlePanelProps) => {
               </div>
             </div>
           </div>
-          <DialogFooter className="mt-6">
+          <DialogFooter className="mt-4">
             <button
               type="button"
               onClick={() => setCreateOpen(false)}
