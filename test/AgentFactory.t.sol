@@ -9,15 +9,12 @@ contract AgentFactoryTest is Test {
     AgentFactory public agentFactory;
 
     address public owner = address(1);
-    address public authorizedCaller = address(2);
-    address public unauthorizedCaller = address(3);
+    address public creatorA = address(2);
+    address public creatorB = address(3);
 
     function setUp() public {
         vm.prank(owner);
         agentFactory = new AgentFactory();
-
-        vm.prank(owner);
-        agentFactory.setAuthorizedCaller(authorizedCaller, true);
     }
 
     function testCreateAgentStoresByOwner() public {
@@ -26,10 +23,10 @@ contract AgentFactoryTest is Test {
             abi.encode("Agent1", owner, true, 0)
         );
 
-        vm.prank(authorizedCaller);
+        vm.prank(creatorA);
         address agent = agentFactory.createAgent("Agent1", bytecode);
 
-        address[] memory agents = agentFactory.getAgentsByOwner(authorizedCaller);
+        address[] memory agents = agentFactory.getAgentsByOwner(creatorA);
         assertEq(agents.length, 1);
         assertEq(agents[0], agent);
         assertEq(agentFactory.agentById(1), agent);
@@ -37,21 +34,24 @@ contract AgentFactoryTest is Test {
         assertEq(agentFactory.getAgentCount(), 1);
     }
 
-    function testCreateAgentUnauthorizedCallerReverts() public {
+    function testCreateAgentEmptyBytecodeReverts() public {
+        vm.prank(creatorA);
+        vm.expectRevert("Empty bytecode");
+        agentFactory.createAgent("Agent1", new bytes(0));
+    }
+
+    function testCreateAgentAnyCallerAllowed() public {
         bytes memory bytecode = abi.encodePacked(
             type(MockAgent).creationCode,
             abi.encode("Agent1", owner, true, 0)
         );
 
-        vm.prank(unauthorizedCaller);
-        vm.expectRevert("Not authorized");
-        agentFactory.createAgent("Agent1", bytecode);
-    }
+        vm.prank(creatorB);
+        address agent = agentFactory.createAgent("Agent1", bytecode);
 
-    function testCreateAgentEmptyBytecodeReverts() public {
-        vm.prank(authorizedCaller);
-        vm.expectRevert("Empty bytecode");
-        agentFactory.createAgent("Agent1", new bytes(0));
+        address[] memory agents = agentFactory.getAgentsByOwner(creatorB);
+        assertEq(agents.length, 1);
+        assertEq(agents[0], agent);
     }
 
     function testCreateAgentDeterministicAddress() public {
@@ -60,14 +60,14 @@ contract AgentFactoryTest is Test {
             abi.encode("Agent1", owner, true, 0)
         );
 
-        bytes32 salt = keccak256(abi.encode(authorizedCaller, "Agent1", uint256(1)));
+        bytes32 salt = keccak256(abi.encode(creatorA, "Agent1", uint256(1)));
         address expected = _computeCreate2Address(
             salt,
             keccak256(bytecode),
             address(agentFactory)
         );
 
-        vm.prank(authorizedCaller);
+        vm.prank(creatorA);
         address agent = agentFactory.createAgent("Agent1", bytecode);
 
         assertEq(agent, expected);
