@@ -11,7 +11,7 @@ import {
   claimPrize,
   getAgentsByOwner,
   getGasOverrides,
-  registerAgentWithFactory,
+  registerAgent,
 } from '@/utils/battlechain'
 import { ChallengeType } from '@/types/contracts'
 import { toast } from '@/components/ui/toast'
@@ -248,7 +248,7 @@ const DashboardContent: React.FC = () => {
       }
 
       const gasOverrides = await getGasOverrides(publicClient)
-      await registerAgentWithFactory(
+      await registerAgent(
         walletClient,
         battleId,
         selectedAgent as Address,

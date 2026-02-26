@@ -97,7 +97,7 @@ export const BET_CLAIMED_EVENT = parseAbiItem(
   'event BetClaimed(uint256 indexed battleId, address indexed bettor, uint256 payout)',
 )
 const AGENT_CREATED_EVENT_SIGNATURE =
-  'event AgentCreated(address indexed agent, address indexed owner)'
+  'event AgentCreated(uint256 indexed agentId, address indexed agent, address indexed owner, string name)'
 export const AGENT_CREATED_EVENT = parseAbiItem(AGENT_CREATED_EVENT_SIGNATURE)
 
 export type GasOverrides = {
@@ -202,6 +202,7 @@ export const createBattle = async (
 
 export const createAgent = async (
   client: WalletClient,
+  name: string,
   bytecode: `0x${string}`,
   gasOverrides?: GasOverrides,
 ) =>
@@ -209,7 +210,7 @@ export const createAgent = async (
     address: AGENT_FACTORY_ADDRESS,
     abi: AGENT_FACTORY_ABI,
     functionName: 'createAgent',
-    args: [bytecode],
+    args: [name, bytecode],
     ...gasOverrides,
   })
 
@@ -222,20 +223,6 @@ export const registerAgent = async (
   client.writeContract({
     address: ARENA_ADDRESS,
     abi: ARENA_ABI,
-    functionName: 'registerAgent',
-    args: [battleId, agentAddress],
-    ...gasOverrides,
-  })
-
-export const registerAgentWithFactory = async (
-  client: WalletClient,
-  battleId: bigint,
-  agentAddress: Address,
-  gasOverrides?: GasOverrides,
-) =>
-  client.writeContract({
-    address: AGENT_FACTORY_ADDRESS,
-    abi: AGENT_FACTORY_ABI,
     functionName: 'registerAgent',
     args: [battleId, agentAddress],
     ...gasOverrides,

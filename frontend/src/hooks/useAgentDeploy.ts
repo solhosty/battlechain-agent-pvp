@@ -6,7 +6,7 @@ import {
   AGENT_CREATED_EVENT,
   createAgent,
   getAgentsByOwner,
-  registerAgentWithFactory,
+  registerAgent,
 } from '@/utils/battlechain'
 import type { GasOverrides } from '@/utils/battlechain'
 import { formatWalletError } from '@/utils/walletErrors'
@@ -360,8 +360,9 @@ export const useAgentDeploy = () => {
         args: [sender],
       })
 
+      const agentName = compiledArtifact?.contractName ?? 'Agent'
       const hash = await sendWithRetry((overrides) =>
-        createAgent(walletClient, encodedBytecode, overrides),
+        createAgent(walletClient, agentName, encodedBytecode, overrides),
       )
       setDeployPhase('submitted')
       setDeployPhase('confirming')
@@ -423,7 +424,7 @@ export const useAgentDeploy = () => {
       }
 
       const hash = await sendWithRetry((overrides) =>
-        registerAgentWithFactory(
+        registerAgent(
           walletClient,
           battleId,
           agentAddress,

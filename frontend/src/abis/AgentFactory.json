@@ -2,13 +2,7 @@
   "abi": [
     {
       "type": "constructor",
-      "inputs": [
-        {
-          "name": "arenaAddress",
-          "type": "address",
-          "internalType": "address"
-        }
-      ],
+      "inputs": [],
       "stateMutability": "nonpayable"
     },
     {
@@ -16,6 +10,12 @@
       "name": "AgentCreated",
       "anonymous": false,
       "inputs": [
+        {
+          "name": "agentId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
         {
           "name": "agent",
           "type": "address",
@@ -27,26 +27,56 @@
           "type": "address",
           "indexed": true,
           "internalType": "address"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "indexed": false,
+          "internalType": "string"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "name": "AuthorizedCallerUpdated",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "caller",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "authorized",
+          "type": "bool",
+          "indexed": false,
+          "internalType": "bool"
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "name": "OwnerUpdated",
+      "anonymous": false,
+      "inputs": [
+        {
+          "name": "newOwner",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
         }
       ]
     },
     {
       "type": "function",
-      "name": "arena",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "",
-          "type": "address",
-          "internalType": "address"
-        }
-      ],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
       "name": "createAgent",
       "inputs": [
+        {
+          "name": "name",
+          "type": "string",
+          "internalType": "string"
+        },
         {
           "name": "bytecode",
           "type": "bytes",
@@ -67,7 +97,7 @@
       "name": "getAgentsByOwner",
       "inputs": [
         {
-          "name": "owner",
+          "name": "ownerAddress",
           "type": "address",
           "internalType": "address"
         }
@@ -83,12 +113,120 @@
     },
     {
       "type": "function",
-      "name": "getAgentOwner",
+      "name": "getAgentCount",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "setAuthorizedCaller",
       "inputs": [
         {
-          "name": "agent",
+          "name": "caller",
           "type": "address",
           "internalType": "address"
+        },
+        {
+          "name": "authorized",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "setOwner",
+      "inputs": [
+        {
+          "name": "newOwner",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "owner",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "authorizedCallers",
+      "inputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "nextAgentId",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "agentIds",
+      "inputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "agentById",
+      "inputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
         }
       ],
       "outputs": [
@@ -102,21 +240,27 @@
     },
     {
       "type": "function",
-      "name": "registerAgent",
+      "name": "agentsByOwner",
       "inputs": [
         {
-          "name": "battleId",
-          "type": "uint256",
-          "internalType": "uint256"
+          "name": "",
+          "type": "address",
+          "internalType": "address"
         },
         {
-          "name": "agent",
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
           "type": "address",
           "internalType": "address"
         }
       ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
+      "stateMutability": "view"
     }
   ]
 }
