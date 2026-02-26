@@ -125,6 +125,12 @@ export const useAgentDeploy = () => {
     }
     const actualChainId =
       chainId ?? walletClient.chain?.id ?? publicClient.chain?.id
+    if (!actualChainId) {
+      return {
+        ready: false,
+        reason: 'Unable to detect wallet chain. Reconnect your wallet.',
+      }
+    }
     if (actualChainId && actualChainId !== expectedChainId) {
       return {
         ready: false,

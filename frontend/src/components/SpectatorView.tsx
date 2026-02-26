@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { usePublicClient, useWalletClient } from 'wagmi'
+import { useChainId, usePublicClient, useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
 import { getGasOverrides, placeBet } from '@/utils/battlechain'
 import type { BattleSummary } from '@/types/contracts'
@@ -23,8 +23,16 @@ const SpectatorView: React.FC = () => {
     fetchBattles,
     fetchBattleAgents,
   } = useBattleChain()
-  const publicClient = usePublicClient()
-  const { data: walletClient } = useWalletClient()
+  const chainId = useChainId()
+  const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
+  const hasExpectedChainId =
+    Number.isFinite(expectedChainId) && expectedChainId > 0
+  const publicClient = usePublicClient({
+    chainId: hasExpectedChainId ? expectedChainId : undefined,
+  })
+  const { data: walletClient } = useWalletClient({
+    chainId: hasExpectedChainId ? expectedChainId : undefined,
+  })
   const searchParams = useSearchParams()
   const [selectedBattle, setSelectedBattle] = useState<BattleSummary | null>(null)
   const [agents, setAgents] = useState<Agent[]>([])
@@ -82,6 +90,17 @@ const SpectatorView: React.FC = () => {
     if (!selectedBattle || selectedAgent === null || !betAmount) return
     if (!walletClient) {
       toast.error('Connect your wallet to place a bet')
+      return
+    }
+
+    const actualChainId =
+      chainId ?? walletClient.chain?.id ?? publicClient?.chain?.id
+    if (!actualChainId) {
+      toast.error('Unable to detect wallet chain. Reconnect your wallet.')
+      return
+    }
+    if (hasExpectedChainId && actualChainId !== expectedChainId) {
+      toast.error(`Wrong network. Switch to chain ${expectedChainId}.`)
       return
     }
 

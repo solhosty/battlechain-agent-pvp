@@ -51,7 +51,9 @@ const DashboardContent: React.FC = () => {
   const publicClient = usePublicClient({
     chainId: hasExpectedChainId ? expectedChainId : undefined,
   })
-  const { data: walletClient } = useWalletClient()
+  const { data: walletClient } = useWalletClient({
+    chainId: hasExpectedChainId ? expectedChainId : undefined,
+  })
   const rpcUrl = process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL
   const router = useRouter()
   const [savedAgents, setSavedAgents] = useState<Address[]>([])
@@ -171,6 +173,17 @@ const DashboardContent: React.FC = () => {
     }
 
     try {
+      const actualChainId =
+        chainId ?? walletClient.chain?.id ?? publicClient?.chain?.id
+      if (!actualChainId) {
+        toast.error('Unable to detect wallet chain. Reconnect your wallet.')
+        return
+      }
+      if (actualChainId !== expectedChainId) {
+        toast.error(`Wrong network. Switch to chain ${expectedChainId}.`)
+        return
+      }
+
       const gasOverrides = await getGasOverrides(publicClient)
       await registerAgent(
         walletClient,
@@ -216,7 +229,12 @@ const DashboardContent: React.FC = () => {
 
     const actualChainId =
       chainId ?? walletClient.chain?.id ?? publicClient.chain?.id
-    if (actualChainId && actualChainId !== expectedChainId) {
+    if (!actualChainId) {
+      toast.error('Unable to detect wallet chain. Reconnect your wallet.')
+      setCreatePhase('error')
+      return
+    }
+    if (actualChainId !== expectedChainId) {
       toast.error(`Wrong network. Switch to chain ${expectedChainId}.`)
       setCreatePhase('error')
       return
