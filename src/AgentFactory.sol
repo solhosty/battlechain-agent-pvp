@@ -5,7 +5,6 @@ import "./interfaces/IAgentFactory.sol";
 
 contract AgentFactory is IAgentFactory {
     address public owner;
-    mapping(address => bool) public authorizedCallers;
 
     uint256 public nextAgentId;
     uint256[] public agentIds;
@@ -18,7 +17,6 @@ contract AgentFactory is IAgentFactory {
         address indexed owner,
         string name
     );
-    event AuthorizedCallerUpdated(address indexed caller, bool authorized);
     event OwnerUpdated(address indexed newOwner);
 
     modifier onlyOwner() {
@@ -26,20 +24,9 @@ contract AgentFactory is IAgentFactory {
         _;
     }
 
-    modifier onlyAuthorizedCaller() {
-        require(authorizedCallers[msg.sender], "Not authorized");
-        _;
-    }
-
     constructor() {
         owner = msg.sender;
         nextAgentId = 1;
-    }
-
-    /// @notice Authorizes or revokes a caller for deployments.
-    function setAuthorizedCaller(address caller, bool authorized) external onlyOwner {
-        authorizedCallers[caller] = authorized;
-        emit AuthorizedCallerUpdated(caller, authorized);
     }
 
     /// @notice Transfers contract ownership.
@@ -52,7 +39,7 @@ contract AgentFactory is IAgentFactory {
     function createAgent(
         string memory name,
         bytes memory bytecode
-    ) external onlyAuthorizedCaller returns (address agent) {
+    ) external returns (address agent) {
         require(bytecode.length != 0, "Empty bytecode");
         uint256 agentId = nextAgentId;
         bytes32 salt = keccak256(abi.encode(msg.sender, name, agentId));

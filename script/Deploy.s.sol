@@ -39,7 +39,6 @@ contract DeployScript is Script {
         console.log("Arena deployed at:", address(arena));
 
         challengeFactory.setAuthorizedCaller(address(arena), true);
-        agentFactory.setAuthorizedCaller(address(arena), true);
         
         // Deploy SpectatorBetting
         SpectatorBetting betting = new SpectatorBetting(address(arena));
