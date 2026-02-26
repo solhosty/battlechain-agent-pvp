@@ -11,7 +11,7 @@
     "setup:foundry": "curl -L https://foundry.paradigm.xyz | bash && foundryup",
     "build:contracts": "forge build && node scripts/copy-abis.js",
     "build:frontend": "cd frontend && npm run build",
-    "dev": "concurrently \"npm run dev:contracts\" \"npm run dev:frontend\"",
+    "dev": "npm run dev:frontend",
     "start:local": "source .env && anvil --fork-url $BATTLECHAIN_RPC_URL",
     "dev:contracts": "source .env && anvil --fork-url $BATTLECHAIN_RPC_URL 2>/dev/null || echo 'Install Anvil: curl -L https://foundry.paradigm.xyz | bash'",
     "dev:frontend": "cd frontend && npm run dev",
