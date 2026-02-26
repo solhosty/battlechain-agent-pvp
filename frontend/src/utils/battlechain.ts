@@ -29,6 +29,8 @@ export const AGENT_REGISTERED_EVENT = parseAbiItem(
 export type GasOverrides = {
   maxFeePerGas?: bigint
   maxPriorityFeePerGas?: bigint
+  gasPrice?: bigint
+  nonce?: number
 }
 
 const parseGweiEnv = (value: string | undefined): bigint | undefined => {

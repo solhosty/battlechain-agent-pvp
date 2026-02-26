@@ -3,11 +3,11 @@ import type { Abi, Address } from 'viem'
 import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
 import {
   addSavedAgent,
-  getGasOverrides,
   loadSavedAgents,
   registerAgent as registerAgentOnArena,
   removeSavedAgent,
 } from '@/utils/battlechain'
+import type { GasOverrides } from '@/utils/battlechain'
 import { formatWalletError } from '@/utils/walletErrors'
 
 type CompilationStatus =
@@ -62,7 +62,7 @@ const request = async <TResponse>(path: string, payload: unknown) => {
 }
 
 export const useAgentDeploy = () => {
-  const { isConnected } = useAccount()
+  const { isConnected, address: account } = useAccount()
   const chainId = useChainId()
   const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
   const hasExpectedChainId = Number.isFinite(expectedChainId) && expectedChainId > 0
@@ -176,6 +176,86 @@ export const useAgentDeploy = () => {
     }
   }
 
+  const gasBufferSteps = [120n, 130n, 150n]
+
+  const applyGasBuffer = (gasPrice: bigint, buffer: bigint) =>
+    (gasPrice * buffer) / 100n
+
+  const getErrorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : String(error)
+
+  const isReplacementUnderpriced = (message: string) =>
+    message.includes('insufficient gas price to replace existing transaction') ||
+    message.includes('replacement transaction underpriced')
+
+  const isNonceTooLow = (message: string) => message.includes('nonce too low')
+
+  const isAlreadyKnown = (message: string) => message.includes('already known')
+
+  const shouldRetryTx = (message: string) =>
+    isReplacementUnderpriced(message) ||
+    isNonceTooLow(message) ||
+    isAlreadyKnown(message)
+
+  const shouldRefreshNonce = (message: string) => isNonceTooLow(message)
+
+  const backoff = async (attempt: number) => {
+    const delay = 500 * 2 ** attempt
+    await new Promise((resolve) => setTimeout(resolve, delay))
+  }
+
+  const sendWithRetry = async (
+    send: (overrides: GasOverrides) => Promise<`0x${string}`>,
+  ) => {
+    if (!walletClient) {
+      throw new Error('Wallet client unavailable. Reconnect wallet and try again.')
+    }
+
+    if (!publicClient) {
+      throw new Error(
+        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+      )
+    }
+
+    const sender = account ?? walletClient.account?.address
+    if (!sender) {
+      throw new Error('Wallet account unavailable. Reconnect wallet and try again.')
+    }
+
+    let nonce = await walletClient.getTransactionCount({
+      address: sender,
+      blockTag: 'pending',
+    })
+
+    for (let attempt = 0; attempt < gasBufferSteps.length; attempt += 1) {
+      const gasPrice = await publicClient.getGasPrice()
+      const overrides: GasOverrides = {
+        gasPrice: applyGasBuffer(gasPrice, gasBufferSteps[attempt]),
+        nonce,
+      }
+
+      try {
+        return await send(overrides)
+      } catch (error) {
+        const message = getErrorMessage(error).toLowerCase()
+        if (!shouldRetryTx(message) || attempt === gasBufferSteps.length - 1) {
+          throw error
+        }
+
+        if (shouldRefreshNonce(message)) {
+          nonce = await walletClient.getTransactionCount({
+            address: sender,
+            blockTag: 'pending',
+          })
+        }
+
+        await backoff(attempt)
+      }
+    }
+
+    throw new Error('Transaction retry limit reached.')
+  }
+
   const generateAgent = async (prompt: string) => {
     setGenerating(true)
     try {
@@ -251,12 +331,13 @@ export const useAgentDeploy = () => {
         )
       }
 
-      const gasOverrides = await getGasOverrides(publicClient)
-      const hash = await walletClient.deployContract({
-        abi,
-        bytecode,
-        ...gasOverrides,
-      })
+      const hash = await sendWithRetry((overrides) =>
+        walletClient.deployContract({
+          abi,
+          bytecode,
+          ...overrides,
+        }),
+      )
       setDeployPhase('submitted')
       setDeployPhase('confirming')
       const receipt = await waitForReceiptWithTimeout(hash)
@@ -305,12 +386,13 @@ export const useAgentDeploy = () => {
         )
       }
 
-      const gasOverrides = await getGasOverrides(publicClient)
-      const hash = await registerAgentOnArena(
-        walletClient,
-        battleId,
-        agentAddress,
-        gasOverrides,
+      const hash = await sendWithRetry((overrides) =>
+        registerAgentOnArena(
+          walletClient,
+          battleId,
+          agentAddress,
+          overrides,
+        ),
       )
       setRegisterPhase('submitted')
       setRegisterPhase('confirming')
