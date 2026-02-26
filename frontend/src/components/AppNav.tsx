@@ -4,10 +4,13 @@ import { useState } from 'react'
 import { ConnectKitButton } from 'connectkit'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { formatEther } from 'viem'
 import { useAccount } from 'wagmi'
+import { useBattleChain } from '@/hooks/useBattleChain'
 
 const navItems = [
   { to: '/', label: 'Dashboard' },
+  { to: '/dashboard', label: 'Balance' },
   { to: '/studio', label: 'Studio' },
   { to: '/spectate', label: 'Spectate' },
 ]
@@ -16,6 +19,15 @@ const AppNav = () => {
   const { address } = useAccount()
   const [menuOpen, setMenuOpen] = useState(false)
   const pathname = usePathname()
+  const { claimablePrizeTotal, claimableBetTotal, pendingWithdrawalTotal } =
+    useBattleChain()
+
+  const claimableTotal =
+    claimablePrizeTotal + claimableBetTotal + pendingWithdrawalTotal
+  const hasClaimable = claimableTotal > 0n
+  const claimableLabel = hasClaimable
+    ? `${Number(formatEther(claimableTotal)).toFixed(3)} ETH`
+    : null
 
   const linkClass = (isActive: boolean) => {
     const base =
@@ -44,7 +56,14 @@ const AppNav = () => {
                 href={item.to}
                 className={linkClass(pathname === item.to)}
               >
-                {item.label}
+                <span className="inline-flex items-center gap-2">
+                  {item.label}
+                  {item.to === '/dashboard' && hasClaimable ? (
+                    <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+                      {claimableLabel}
+                    </span>
+                  ) : null}
+                </span>
               </Link>
             ))}
           </div>
@@ -89,7 +108,14 @@ const AppNav = () => {
                 className={linkClass(pathname === item.to)}
                 onClick={() => setMenuOpen(false)}
               >
-                {item.label}
+                <span className="inline-flex items-center gap-2">
+                  {item.label}
+                  {item.to === '/dashboard' && hasClaimable ? (
+                    <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+                      {claimableLabel}
+                    </span>
+                  ) : null}
+                </span>
               </Link>
             ))}
           </div>

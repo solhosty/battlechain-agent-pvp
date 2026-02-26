@@ -23,13 +23,20 @@ contract Battle is IBattle {
     IBattle.BattleState public state;
     address public winner;
     uint256 public winningAmount;
+    uint256 public prizePool;
     mapping(address => bool) public hasClaimed;
+    mapping(address => address) public agentOwner;
+    mapping(address => bool) public agentRegistered;
+    mapping(address => bool) public ownerRegistered;
+    mapping(address => uint256) public s_pendingWithdrawals;
+    bool private locked;
 
     event AgentRegistered(address indexed agent);
     event BattleStarted(uint256 timestamp);
     event BattleResolved(address indexed winner, uint256 winningAmount, uint256[] extractions);
     event PrizePoolFunded(address indexed funder, uint256 amount);
     event PrizeClaimed(address indexed winner, uint256 amount);
+    event Withdrawal(address indexed account, uint256 amount);
 
     modifier onlyArena() {
         require(msg.sender == arena, "Only arena");
@@ -39,6 +46,13 @@ contract Battle is IBattle {
     modifier whenState(IBattle.BattleState _state) {
         require(state == _state, "Invalid state");
         _;
+    }
+
+    modifier nonReentrant() {
+        require(!locked, "Reentrant call");
+        locked = true;
+        _;
+        locked = false;
     }
 
     constructor(
@@ -65,11 +79,23 @@ contract Battle is IBattle {
     }
 
     /// @notice Registers an agent for battle execution.
-    function registerAgent(address agent) external onlyArena whenState(IBattle.BattleState.PENDING) {
+    function registerAgent(address agent)
+        external
+        onlyArena
+        whenState(IBattle.BattleState.PENDING)
+        nonReentrant
+    {
         require(agents.length < maxAgents, "Max agents reached");
-        require(IAgent(agent).owner() != address(0), "Invalid agent");
-        
+        require(agent != address(0), "Invalid agent");
+        require(!agentRegistered[agent], "Agent already registered");
+
+        address owner = _getAgentOwner(agent);
+        require(!ownerRegistered[owner], "Owner already registered");
+
         agents.push(agent);
+        agentOwner[agent] = owner;
+        agentRegistered[agent] = true;
+        ownerRegistered[owner] = true;
         emit AgentRegistered(agent);
     }
 
@@ -94,7 +120,10 @@ contract Battle is IBattle {
             uint256 beforeBalance = address(challenge).balance;
             
             try IAgent(agents[i]).attack(address(challenge)) {
-                uint256 extracted = beforeBalance - address(challenge).balance;
+                uint256 afterBalance = address(challenge).balance;
+                uint256 extracted = beforeBalance > afterBalance
+                    ? beforeBalance - afterBalance
+                    : 0;
                 extractions[i] = extracted;
                 
                 if (extracted > highestExtraction) {
@@ -109,31 +138,70 @@ contract Battle is IBattle {
         winner = winningAgent;
         winningAmount = highestExtraction;
         state = IBattle.BattleState.RESOLVED;
+        prizePool = address(this).balance;
         
         emit BattleResolved(winner, winningAmount, extractions);
+
+        if (winner == address(0)) {
+            if (prizePool > 0) {
+                s_pendingWithdrawals[creator] += prizePool;
+            }
+            state = IBattle.BattleState.CLAIMED;
+        }
     }
 
     /// @notice Claims the prize pool for the winning agent or its owner.
-    function claimPrize() external whenState(IBattle.BattleState.RESOLVED) {
-        require(msg.sender == winner || msg.sender == IAgent(winner).owner(), "Not winner");
+    function claimPrize() external whenState(IBattle.BattleState.RESOLVED) nonReentrant {
+        require(winner != address(0), "No winner");
+
+        address winnerOwner = agentOwner[winner];
+        require(msg.sender == winner || msg.sender == winnerOwner, "Not winner");
         require(!hasClaimed[winner], "Already claimed");
-        
+
+        uint256 winnerShare = s_agentPrizes(msg.sender);
+        require(winnerShare > 0, "No prize available");
+
         hasClaimed[winner] = true;
         state = IBattle.BattleState.CLAIMED;
-        
-        uint256 prizePool = address(this).balance;
-        uint256 winnerShare = (prizePool * WINNER_SHARE_BPS) / BPS_DENOMINATOR;
-        uint256 spectatorShare = prizePool - winnerShare;
-        
-        (bool success1, ) = payable(IAgent(winner).owner()).call{value: winnerShare}("");
-        require(success1, "Winner transfer failed");
-        
-        if (spectatorShare > 0) {
-            (bool success2, ) = payable(creator).call{value: spectatorShare}("");
-            require(success2, "Creator transfer failed");
+
+        s_pendingWithdrawals[winnerOwner] += winnerShare;
+
+        uint256 creatorShare = prizePool - winnerShare;
+        if (creatorShare > 0) {
+            s_pendingWithdrawals[creator] += creatorShare;
         }
-        
+
         emit PrizeClaimed(winner, winnerShare);
+    }
+
+    /// @notice Withdraws any pending balance for the caller.
+    function withdraw() external nonReentrant {
+        uint256 amount = s_pendingWithdrawals[msg.sender];
+        require(amount > 0, "No pending withdrawal");
+        s_pendingWithdrawals[msg.sender] = 0;
+
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        require(success, "Withdrawal failed");
+
+        emit Withdrawal(msg.sender, amount);
+    }
+
+    /// @notice Returns claimable prize amount for an account.
+    function s_agentPrizes(address account) public view returns (uint256) {
+        if (state != IBattle.BattleState.RESOLVED) {
+            return 0;
+        }
+        if (winner == address(0)) {
+            return 0;
+        }
+        if (hasClaimed[winner]) {
+            return 0;
+        }
+        address winnerOwner = agentOwner[winner];
+        if (account != winner && account != winnerOwner) {
+            return 0;
+        }
+        return (prizePool * WINNER_SHARE_BPS) / BPS_DENOMINATOR;
     }
 
     /// @notice Returns the current battle state.
@@ -154,6 +222,16 @@ contract Battle is IBattle {
     /// @notice Returns the challenge contract address.
     function getChallenge() external view returns (address) {
         return challenge;
+    }
+
+    function _getAgentOwner(address agent) internal view returns (address) {
+        (bool success, bytes memory data) = agent.staticcall(
+            abi.encodeWithSelector(IAgent.owner.selector)
+        );
+        require(success && data.length >= 32, "Invalid agent");
+        address owner = abi.decode(data, (address));
+        require(owner != address(0), "Invalid agent");
+        return owner;
     }
 
     /// @notice Accepts direct prize pool funding.

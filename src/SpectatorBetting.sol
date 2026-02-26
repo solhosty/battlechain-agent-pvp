@@ -62,6 +62,15 @@ contract SpectatorBetting {
         uint256 startTime
     ) external onlyArena {
         require(battles[battleId].startTime == 0, "Battle already registered");
+        require(agents.length > 0, "No agents");
+
+        for (uint256 i = 0; i < agents.length; i++) {
+            address agent = agents[i];
+            require(agent != address(0), "Invalid agent");
+            for (uint256 j = i + 1; j < agents.length; j++) {
+                require(agent != agents[j], "Duplicate agent");
+            }
+        }
         
         battles[battleId] = BattleInfo({
             startTime: startTime,
@@ -131,6 +140,20 @@ contract SpectatorBetting {
         require(success, "Payout failed");
 
         emit BetClaimed(battleId, msg.sender, payout);
+    }
+
+    /// @notice Returns claimable payout for a bettor on a battle.
+    function s_betPayouts(address bettor, uint256 battleId) external view returns (uint256) {
+        BattleInfo storage battle = battles[battleId];
+        if (!battle.resolved) {
+            return 0;
+        }
+        uint256 winningAgentIndex = battle.winningAgentIndex;
+        Bet storage bet = bets[battleId][winningAgentIndex][bettor];
+        if (bet.amount == 0 || bet.claimed) {
+            return 0;
+        }
+        return calculatePayout(battleId, winningAgentIndex, bet.amount);
     }
 
     /// @notice Returns the current odds for an agent in a battle.

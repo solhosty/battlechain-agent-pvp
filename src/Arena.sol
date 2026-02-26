@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "./Battle.sol";
+import "./interfaces/IAgent.sol";
 import "./interfaces/IAttackRegistry.sol";
 import "./interfaces/IChallengeFactory.sol";
 
@@ -20,6 +21,7 @@ contract Arena {
     uint256 public nextBattleId;
     mapping(uint256 => address) public battles;
     mapping(address => uint256[]) public creatorBattles;
+    bool private locked;
 
     event BattleCreated(
         uint256 indexed battleId,
@@ -40,6 +42,13 @@ contract Arena {
     modifier whenNotPaused() {
         require(!paused, "Contract paused");
         _;
+    }
+
+    modifier nonReentrant() {
+        require(!locked, "Reentrant call");
+        locked = true;
+        _;
+        locked = false;
     }
 
     constructor(
@@ -87,7 +96,11 @@ contract Arena {
     }
 
     /// @notice Registers an agent for a battle.
-    function registerAgent(uint256 battleId, address agent) external whenNotPaused {
+    function registerAgent(uint256 battleId, address agent)
+        external
+        whenNotPaused
+        nonReentrant
+    {
         address battleAddress = battles[battleId];
         require(battleAddress != address(0), "Battle not found");
         
@@ -95,6 +108,12 @@ contract Arena {
         require(
             IAttackRegistry(attackRegistry).isUnderAttack(challenge),
             "Challenge not in attack mode"
+        );
+
+        address agentOwner = _getAgentOwner(agent);
+        require(
+            msg.sender == agentOwner || msg.sender == agent,
+            "Not agent owner"
         );
 
         Battle(payable(battleAddress)).registerAgent(agent);
@@ -150,8 +169,33 @@ contract Arena {
     }
 
     /// @notice Returns all battle ids created by a creator.
-    function getCreatorBattles(address creator) external view returns (uint256[] memory) {
-        return creatorBattles[creator];
+    function getCreatorBattleCount(address creator) external view returns (uint256) {
+        return creatorBattles[creator].length;
+    }
+
+    /// @notice Returns a single battle id for a creator by index.
+    function getCreatorBattleAt(address creator, uint256 index) external view returns (uint256) {
+        require(index < creatorBattles[creator].length, "Index out of bounds");
+        return creatorBattles[creator][index];
+    }
+
+    /// @notice Returns battle ids for a creator with pagination.
+    function getCreatorBattles(
+        address creator,
+        uint256 offset,
+        uint256 limit
+    ) external view returns (uint256[] memory) {
+        uint256 total = creatorBattles[creator].length;
+        if (offset >= total) {
+            return new uint256[](0);
+        }
+        uint256 available = total - offset;
+        uint256 count = available < limit ? available : limit;
+        uint256[] memory ids = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            ids[i] = creatorBattles[creator][offset + i];
+        }
+        return ids;
     }
 
     /// @notice Returns all battle ids in the arena.
@@ -161,5 +205,15 @@ contract Arena {
             ids[i] = i;
         }
         return ids;
+    }
+
+    function _getAgentOwner(address agent) internal view returns (address) {
+        (bool success, bytes memory data) = agent.staticcall(
+            abi.encodeWithSelector(IAgent.owner.selector)
+        );
+        require(success && data.length >= 32, "Invalid agent");
+        address owner = abi.decode(data, (address));
+        require(owner != address(0), "Invalid agent");
+        return owner;
     }
 }

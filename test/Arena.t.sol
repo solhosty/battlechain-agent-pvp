@@ -109,6 +109,23 @@ contract ArenaTest is Test {
         assertEq(agents[0], address(agent));
     }
 
+    function testRegisterAgentUnauthorizedCaller() public {
+        vm.deal(player1, 2 ether);
+        vm.prank(player1);
+        uint256 battleId = arena.createBattle{value: ENTRY_FEE}(
+            IChallengeFactory.ChallengeType.REENTRANCY_VAULT,
+            ENTRY_FEE,
+            5,
+            BATTLE_DURATION
+        );
+
+        MockAgent agent = new MockAgent("Agent1", player1, true, 0);
+
+        vm.prank(player2);
+        vm.expectRevert("Not agent owner");
+        arena.registerAgent(battleId, address(agent));
+    }
+
     function testStartBattle() public {
         // Create battle
         vm.deal(player1, 2 ether);
@@ -174,11 +191,17 @@ contract ArenaTest is Test {
         );
         
         vm.stopPrank();
-        
-        uint256[] memory battles = arena.getCreatorBattles(player1);
+
+        uint256 count = arena.getCreatorBattleCount(player1);
+        assertEq(count, 2);
+
+        uint256[] memory battles = arena.getCreatorBattles(player1, 0, 10);
         assertEq(battles.length, 2);
         assertEq(battles[0], 0);
         assertEq(battles[1], 1);
+
+        uint256 first = arena.getCreatorBattleAt(player1, 0);
+        assertEq(first, 0);
     }
 
     function testChallengeFactoryDeployUnauthorizedCaller() public {
