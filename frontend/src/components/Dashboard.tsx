@@ -154,7 +154,7 @@ const DashboardContent: React.FC = () => {
           setSavedAgents(merged)
         }
       })
-      .catch((error) => console.error('Agent discovery failed', error))
+      .catch((error) => console.error('[AgentDiscovery] failed', error))
 
     return () => {
       active = false
