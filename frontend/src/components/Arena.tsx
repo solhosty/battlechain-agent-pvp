@@ -10,15 +10,17 @@ const Arena = () => {
   const openCustomize = searchParams.get('create') === '1'
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-2">
+    <div className="space-y-8">
+      <header className="space-y-3 border-b border-border/60 pb-6">
         <Heading as="h1" size="h1">
           Arena
         </Heading>
-        <Text tone="muted">Create battles and deploy agents side-by-side.</Text>
+        <Text tone="muted" className="max-w-2xl">
+          Create battles and deploy agents side-by-side.
+        </Text>
       </header>
 
-      <section className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+      <section className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] items-start">
         <CreateBattlePanel initialOpen={openCustomize} />
         <AgentStudio compact />
       </section>

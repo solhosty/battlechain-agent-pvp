@@ -324,29 +324,29 @@ const CreateBattlePanel = ({ initialOpen }: CreateBattlePanelProps) => {
         </Text>
       </div>
 
-      <div className="rounded-xl border border-border bg-background/60 p-3">
+      <div className="rounded-xl border border-border bg-background/50 p-2.5">
         <Label>Quick defaults</Label>
-        <div className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-          <div>
+        <div className="mt-2 grid gap-3 text-xs text-muted-foreground sm:grid-cols-2">
+          <div className="flex items-center justify-between rounded-lg bg-background/80 px-3 py-2">
             <span className="font-medium text-foreground">Challenge</span>
-            <div>Reentrancy Vault</div>
+            <span>Reentrancy Vault</span>
           </div>
-          <div>
+          <div className="flex items-center justify-between rounded-lg bg-background/80 px-3 py-2">
             <span className="font-medium text-foreground">Entry fee</span>
-            <div>{quickDefaults.entryFee} ETH</div>
+            <span>{quickDefaults.entryFee} ETH</span>
           </div>
-          <div>
+          <div className="flex items-center justify-between rounded-lg bg-background/80 px-3 py-2">
             <span className="font-medium text-foreground">Max agents</span>
-            <div>{quickDefaults.maxAgents}</div>
+            <span>{quickDefaults.maxAgents}</span>
           </div>
-          <div>
+          <div className="flex items-center justify-between rounded-lg bg-background/80 px-3 py-2">
             <span className="font-medium text-foreground">Duration</span>
-            <div>{quickDefaults.durationHours} hours</div>
+            <span>{quickDefaults.durationHours} hours</span>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:gap-3">
         <button
           type="button"
           onClick={handleQuickBattle}

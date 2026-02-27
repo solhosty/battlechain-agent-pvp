@@ -76,6 +76,9 @@ const AgentStudio: React.FC<AgentStudioProps> = ({ compact = false }) => {
       : registerPhase === 'error'
       ? 'Registration failed. See error details below.'
       : null
+  const panelPadding = compact ? 'p-5' : 'p-6'
+  const panelGap = compact ? 'gap-6' : 'gap-8'
+  const blockHeight = compact ? 'h-48' : 'h-64'
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -160,9 +163,11 @@ const AgentStudio: React.FC<AgentStudioProps> = ({ compact = false }) => {
         <Text tone="muted">Generate and deploy AI-powered attacker agents</Text>
       </header>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <div className={`grid grid-cols-1 ${panelGap} lg:grid-cols-2`}>
         {/* Left Panel - Prompt Input */}
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+        <div
+          className={`rounded-2xl border border-border bg-card ${panelPadding} shadow-card`}
+        >
           <Heading as="h2" size="h3" className="mb-4">
             AI Prompt
           </Heading>
@@ -170,7 +175,7 @@ const AgentStudio: React.FC<AgentStudioProps> = ({ compact = false }) => {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Describe your attack strategy... e.g., 'Create a reentrancy attacker that exploits a vault using checks-effects-interactions violation'"
-            className="h-64 w-full resize-none rounded-lg border border-border bg-background p-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className={`${blockHeight} w-full resize-none rounded-lg border border-border bg-background p-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none`}
           />
           <button
             onClick={handleGenerate}
@@ -182,7 +187,9 @@ const AgentStudio: React.FC<AgentStudioProps> = ({ compact = false }) => {
         </div>
 
         {/* Right Panel - Code Preview */}
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+        <div
+          className={`rounded-2xl border border-border bg-card ${panelPadding} shadow-card`}
+        >
           <div className="mb-4 flex items-center justify-between gap-3">
             <Heading as="h2" size="h3">
               Generated Code
@@ -207,7 +214,9 @@ const AgentStudio: React.FC<AgentStudioProps> = ({ compact = false }) => {
             </div>
           </div>
           
-          <div className="h-64 overflow-auto rounded-lg border border-border bg-background p-4 font-mono text-xs text-muted-foreground">
+          <div
+            className={`${blockHeight} overflow-auto rounded-lg border border-border bg-background p-4 font-mono text-xs text-muted-foreground`}
+          >
             {generatedCode ? (
               <pre>{generatedCode}</pre>
             ) : (
