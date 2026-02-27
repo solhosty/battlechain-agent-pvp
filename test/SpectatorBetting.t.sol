@@ -4,8 +4,29 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 import "../src/SpectatorBetting.sol";
 
+contract MockBattle {
+    address[] private agents;
+
+    constructor(address[] memory _agents) {
+        for (uint256 i = 0; i < _agents.length; i++) {
+            agents.push(_agents[i]);
+        }
+    }
+
+    function getAgents() external view returns (address[] memory) {
+        return agents;
+    }
+}
+
+contract BettingCaller {
+    function placeBet(address bettingAddress, uint256 battleId, uint256 agentIndex) external payable {
+        SpectatorBetting(bettingAddress).placeBet{value: msg.value}(battleId, agentIndex);
+    }
+}
+
 contract SpectatorBettingTest is Test {
     SpectatorBetting public betting;
+    MockBattle public battle;
     
     address public arena = address(1);
     address public spectator1 = address(2);
@@ -23,9 +44,11 @@ contract SpectatorBettingTest is Test {
         agents[0] = address(10);
         agents[1] = address(11);
         agents[2] = address(12);
+
+        battle = new MockBattle(agents);
         
         vm.prank(arena);
-        betting.registerBattle(BATTLE_ID, agents, START_TIME);
+        betting.registerBattle(BATTLE_ID, address(battle), agents, START_TIME);
     }
 
     function testPlaceBet() public {
@@ -156,6 +179,36 @@ contract SpectatorBettingTest is Test {
         vm.stopPrank();
     }
 
+    function testClaimPayoutDustGoesToLastClaimer() public {
+        vm.deal(spectator1, 2 ether);
+        vm.deal(spectator2, 2 ether);
+        vm.deal(spectator3, 2 ether);
+        vm.warp(START_TIME - 1);
+
+        vm.prank(spectator1);
+        betting.placeBet{value: 1 ether}(BATTLE_ID, 0);
+
+        vm.prank(spectator2);
+        betting.placeBet{value: 1 ether}(BATTLE_ID, 0);
+
+        vm.prank(spectator3);
+        betting.placeBet{value: 1 ether}(BATTLE_ID, 1);
+
+        vm.prank(arena);
+        betting.resolveBets(BATTLE_ID, 0);
+
+        uint256 firstBalance = spectator1.balance;
+        uint256 secondBalance = spectator2.balance;
+
+        vm.prank(spectator1);
+        betting.claimPayout(BATTLE_ID);
+        assertEq(spectator1.balance - firstBalance, 1 ether);
+
+        vm.prank(spectator2);
+        betting.claimPayout(BATTLE_ID);
+        assertEq(spectator2.balance - secondBalance, 2 ether);
+    }
+
     function testGetOdds() public {
         vm.deal(spectator1, 3 ether);
         vm.deal(spectator2, 3 ether);
@@ -202,8 +255,20 @@ contract SpectatorBettingTest is Test {
         agents[0] = address(10);
         agents[1] = address(10);
 
+        MockBattle freshBattle = new MockBattle(agents);
+
         vm.prank(arena);
         vm.expectRevert("Duplicate agent");
-        freshBetting.registerBattle(1, agents, START_TIME);
+        freshBetting.registerBattle(1, address(freshBattle), agents, START_TIME);
+    }
+
+    function testPlaceBetFromContractReverts() public {
+        BettingCaller caller = new BettingCaller();
+        vm.deal(address(caller), 1 ether);
+        vm.warp(START_TIME - 1);
+
+        vm.prank(address(caller));
+        vm.expectRevert("EOA only");
+        caller.placeBet{value: 1 ether}(address(betting), BATTLE_ID, 0);
     }
 }
