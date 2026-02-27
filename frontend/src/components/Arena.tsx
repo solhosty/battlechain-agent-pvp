@@ -20,9 +20,9 @@ const Arena = () => {
         </Text>
       </header>
 
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] items-start">
+      <section className="grid gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start">
         <CreateBattlePanel initialOpen={openCustomize} />
-        <AgentStudio compact />
+        <AgentStudio />
       </section>
     </div>
   )
