@@ -122,11 +122,12 @@ contract Arena {
     }
 
     /// @notice Starts a battle once agents are registered.
-    function startBattle(uint256 battleId) external whenNotPaused {
+    function startBattle(uint256 battleId) external whenNotPaused nonReentrant {
         address battleAddress = battles[battleId];
         require(battleAddress != address(0), "Battle not found");
         
         Battle battle = Battle(payable(battleAddress));
+        require(msg.sender == battle.creator(), "Only creator");
         address challenge = battle.getChallenge();
         
         require(
@@ -140,21 +141,22 @@ contract Arena {
     }
 
     /// @notice Resolves a battle after its deadline.
-    function resolveBattle(uint256 battleId) external whenNotPaused {
+    function resolveBattle(uint256 battleId) external whenNotPaused nonReentrant {
         address battleAddress = battles[battleId];
         require(battleAddress != address(0), "Battle not found");
         
         Battle battle = Battle(payable(battleAddress));
+        require(msg.sender == battle.creator(), "Only creator");
         battle.resolveBattle();
         
         emit BattleResolved(battleId, battle.getWinner());
     }
 
     /// @notice Claims a battle prize on behalf of the winner.
-    function claimPrize(uint256 battleId) external {
+    function claimPrize(uint256 battleId) external whenNotPaused nonReentrant {
         address battleAddress = battles[battleId];
         require(battleAddress != address(0), "Battle not found");
-        Battle(payable(battleAddress)).claimPrize();
+        Battle(payable(battleAddress)).claimPrizeFor(msg.sender);
     }
 
     /// @notice Pauses or unpauses arena actions.
@@ -199,10 +201,20 @@ contract Arena {
     }
 
     /// @notice Returns all battle ids in the arena.
-    function getAllBattleIds() external view returns (uint256[] memory) {
-        uint256[] memory ids = new uint256[](nextBattleId);
-        for (uint256 i = 0; i < nextBattleId; i++) {
-            ids[i] = i;
+    function getAllBattleIds(uint256 offset, uint256 limit)
+        external
+        view
+        returns (uint256[] memory)
+    {
+        uint256 total = nextBattleId;
+        if (offset >= total) {
+            return new uint256[](0);
+        }
+        uint256 available = total - offset;
+        uint256 count = available < limit ? available : limit;
+        uint256[] memory ids = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            ids[i] = offset + i;
         }
         return ids;
     }

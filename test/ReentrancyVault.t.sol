@@ -26,6 +26,25 @@ contract ReentrancyAttacker {
     }
 }
 
+contract VaultDepositor {
+    ReentrancyVault public vault;
+
+    constructor(address payable _vault) {
+        vault = ReentrancyVault(payable(_vault));
+    }
+
+    function deposit(uint256 amount) external payable {
+        require(msg.value == amount, "Invalid amount");
+        vault.deposit{value: amount}();
+    }
+
+    function withdrawTo(address recipient) external {
+        vault.withdrawTo(recipient);
+    }
+
+    receive() external payable {}
+}
+
 contract ReentrancyVaultTest is Test {
     ReentrancyVault public vault;
     
@@ -100,6 +119,23 @@ contract ReentrancyVaultTest is Test {
         require(success, "Transfer failed");
         
         assertEq(vault.totalValueLocked(), initialTVL + 3 ether);
+        assertEq(vault.balances(victim), 3 ether);
+    }
+
+    function testWithdrawToRecipientFromContractDepositor() public {
+        VaultDepositor depositor = new VaultDepositor(payable(address(vault)));
+        vm.deal(address(depositor), 2 ether);
+
+        vm.prank(address(depositor));
+        depositor.deposit{value: 2 ether}(2 ether);
+
+        uint256 recipientBalance = victim.balance;
+
+        vm.prank(address(depositor));
+        depositor.withdrawTo(victim);
+
+        assertEq(victim.balance - recipientBalance, 2 ether);
+        assertEq(vault.balances(address(depositor)), 0);
     }
 
     function testGetValueExtracted() public {

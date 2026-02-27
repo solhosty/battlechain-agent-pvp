@@ -22,6 +22,8 @@ contract SpectatorBetting {
     mapping(uint256 => mapping(uint256 => uint256)) public totalWageredPerAgent;
     mapping(uint256 => uint256) public totalPool;
     mapping(uint256 => address[]) public battleAgents;
+    mapping(uint256 => uint256) public remainingPool;
+    mapping(uint256 => uint256) public remainingWinningWager;
     
     address public arena;
     bool public paused;
@@ -51,6 +53,11 @@ contract SpectatorBetting {
         _;
     }
 
+    modifier onlyEOA() {
+        require(msg.sender.code.length == 0, "EOA only");
+        _;
+    }
+
     constructor(address _arena) {
         arena = _arena;
     }
@@ -58,15 +65,21 @@ contract SpectatorBetting {
     /// @notice Registers a battle and its agents for betting.
     function registerBattle(
         uint256 battleId,
+        address battleAddress,
         address[] calldata agents,
         uint256 startTime
     ) external onlyArena {
         require(battles[battleId].startTime == 0, "Battle already registered");
+        require(battleAddress != address(0), "Invalid battle");
         require(agents.length > 0, "No agents");
+
+        address[] memory canonicalAgents = IBattle(battleAddress).getAgents();
+        require(canonicalAgents.length == agents.length, "Agents mismatch");
 
         for (uint256 i = 0; i < agents.length; i++) {
             address agent = agents[i];
             require(agent != address(0), "Invalid agent");
+            require(agent == canonicalAgents[i], "Agents mismatch");
             for (uint256 j = i + 1; j < agents.length; j++) {
                 require(agent != agents[j], "Duplicate agent");
             }
@@ -83,7 +96,12 @@ contract SpectatorBetting {
     }
 
     /// @notice Places a bet on a specific agent for a battle.
-    function placeBet(uint256 battleId, uint256 agentIndex) external payable whenNotPaused {
+    function placeBet(uint256 battleId, uint256 agentIndex)
+        external
+        payable
+        whenNotPaused
+        onlyEOA
+    {
         require(msg.value > 0, "Bet must be positive");
         require(battles[battleId].startTime > 0, "Battle not registered");
         require(block.timestamp < battles[battleId].startTime, "Battle started");
@@ -106,6 +124,8 @@ contract SpectatorBetting {
 
         battles[battleId].resolved = true;
         battles[battleId].winningAgentIndex = winningAgentIndex;
+        remainingPool[battleId] = totalPool[battleId];
+        remainingWinningWager[battleId] = totalWageredPerAgent[battleId][winningAgentIndex];
         emit BetsResolved(battleId, winningAgentIndex);
     }
 
@@ -123,7 +143,7 @@ contract SpectatorBetting {
     }
 
     /// @notice Claims payout for the winning agent bet.
-    function claimPayout(uint256 battleId) external whenNotPaused {
+    function claimPayout(uint256 battleId) external whenNotPaused onlyEOA {
         BattleInfo storage battle = battles[battleId];
         require(battle.resolved, "Battle not resolved");
 
@@ -133,7 +153,19 @@ contract SpectatorBetting {
         require(bet.amount > 0, "No bet placed");
         require(!bet.claimed, "Already claimed");
 
-        uint256 payout = calculatePayout(battleId, winningAgentIndex, bet.amount);
+        uint256 remainingWager = remainingWinningWager[battleId];
+        require(remainingWager >= bet.amount, "Invalid wager");
+
+        uint256 payout;
+        if (remainingWager == bet.amount) {
+            payout = remainingPool[battleId];
+            remainingPool[battleId] = 0;
+            remainingWinningWager[battleId] = 0;
+        } else {
+            payout = calculatePayout(battleId, winningAgentIndex, bet.amount);
+            remainingPool[battleId] -= payout;
+            remainingWinningWager[battleId] -= bet.amount;
+        }
         bet.claimed = true;
 
         (bool success, ) = payable(msg.sender).call{value: payout}("");

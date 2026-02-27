@@ -10,12 +10,14 @@ contract MockAgent is IAgent {
     uint256 public extractionAmount;
     bool public shouldRevertOwner;
     uint256 public increaseBalanceAmount;
+    address public orchestrator;
 
     constructor(string memory _name, address _owner, bool _shouldSucceed, uint256 _extractionAmount) {
         name = _name;
         agentOwner = _owner;
         shouldSucceed = _shouldSucceed;
         extractionAmount = _extractionAmount;
+        orchestrator = msg.sender;
     }
 
     function owner() external view override returns (address) {
@@ -24,6 +26,7 @@ contract MockAgent is IAgent {
     }
 
     function attack(address target) external override {
+        require(msg.sender == orchestrator, "Only orchestrator");
         require(shouldSucceed, "Attack failed");
 
         if (increaseBalanceAmount > 0) {
@@ -52,6 +55,10 @@ contract MockAgent is IAgent {
 
     function setIncreaseBalanceAmount(uint256 amount) external {
         increaseBalanceAmount = amount;
+    }
+
+    function setOrchestrator(address newOrchestrator) external {
+        orchestrator = newOrchestrator;
     }
 
     receive() external payable {}

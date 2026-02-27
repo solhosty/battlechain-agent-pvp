@@ -11,6 +11,7 @@ contract Battle is IBattle {
     uint8 public constant MAX_AGENTS = 10;
     uint256 public constant BPS_DENOMINATOR = 10_000;
     uint256 public constant WINNER_SHARE_BPS = 7_000;
+    uint256 public constant AGENT_GAS_LIMIT = 200_000;
 
     address public immutable challenge;
     uint256 public immutable entryFee;
@@ -115,11 +116,12 @@ contract Battle is IBattle {
         address winningAgent;
         uint256 highestExtraction;
         uint256[] memory extractions = new uint256[](agents.length);
+        bool tie;
         
         for (uint256 i = 0; i < agents.length; i++) {
             uint256 beforeBalance = address(challenge).balance;
             
-            try IAgent(agents[i]).attack(address(challenge)) {
+            try IAgent(agents[i]).attack{gas: AGENT_GAS_LIMIT}(address(challenge)) {
                 uint256 afterBalance = address(challenge).balance;
                 uint256 extracted = beforeBalance > afterBalance
                     ? beforeBalance - afterBalance
@@ -129,12 +131,19 @@ contract Battle is IBattle {
                 if (extracted > highestExtraction) {
                     highestExtraction = extracted;
                     winningAgent = agents[i];
+                    tie = false;
+                } else if (extracted == highestExtraction && extracted > 0) {
+                    tie = true;
                 }
             } catch {
                 extractions[i] = 0;
             }
         }
-        
+
+        if (tie || highestExtraction == 0) {
+            winningAgent = address(0);
+        }
+
         winner = winningAgent;
         winningAmount = highestExtraction;
         state = IBattle.BattleState.RESOLVED;
@@ -152,26 +161,17 @@ contract Battle is IBattle {
 
     /// @notice Claims the prize pool for the winning agent or its owner.
     function claimPrize() external whenState(IBattle.BattleState.RESOLVED) nonReentrant {
-        require(winner != address(0), "No winner");
+        _claimPrize(msg.sender);
+    }
 
-        address winnerOwner = agentOwner[winner];
-        require(msg.sender == winner || msg.sender == winnerOwner, "Not winner");
-        require(!hasClaimed[winner], "Already claimed");
-
-        uint256 winnerShare = s_agentPrizes(msg.sender);
-        require(winnerShare > 0, "No prize available");
-
-        hasClaimed[winner] = true;
-        state = IBattle.BattleState.CLAIMED;
-
-        s_pendingWithdrawals[winnerOwner] += winnerShare;
-
-        uint256 creatorShare = prizePool - winnerShare;
-        if (creatorShare > 0) {
-            s_pendingWithdrawals[creator] += creatorShare;
-        }
-
-        emit PrizeClaimed(winner, winnerShare);
+    /// @notice Claims the prize pool for a winner via the arena.
+    function claimPrizeFor(address claimant)
+        external
+        onlyArena
+        whenState(IBattle.BattleState.RESOLVED)
+        nonReentrant
+    {
+        _claimPrize(claimant);
     }
 
     /// @notice Withdraws any pending balance for the caller.
@@ -194,10 +194,16 @@ contract Battle is IBattle {
         if (winner == address(0)) {
             return 0;
         }
+        if (prizePool == 0) {
+            return 0;
+        }
         if (hasClaimed[winner]) {
             return 0;
         }
         address winnerOwner = agentOwner[winner];
+        if (winnerOwner == address(0)) {
+            return 0;
+        }
         if (account != winner && account != winnerOwner) {
             return 0;
         }
@@ -232,6 +238,31 @@ contract Battle is IBattle {
         address owner = abi.decode(data, (address));
         require(owner != address(0), "Invalid agent");
         return owner;
+    }
+
+    function _claimPrize(address claimant) internal {
+        require(winner != address(0), "No winner");
+
+        address winnerOwner = agentOwner[winner];
+        require(winnerOwner != address(0), "Invalid winner");
+        require(claimant == winner || claimant == winnerOwner, "Not winner");
+        require(!hasClaimed[winner], "Already claimed");
+        require(prizePool > 0, "No prize pool");
+
+        uint256 winnerShare = s_agentPrizes(claimant);
+        require(winnerShare > 0, "No prize available");
+
+        hasClaimed[winner] = true;
+        state = IBattle.BattleState.CLAIMED;
+
+        s_pendingWithdrawals[winnerOwner] += winnerShare;
+
+        uint256 creatorShare = prizePool - winnerShare;
+        if (creatorShare > 0) {
+            s_pendingWithdrawals[creator] += creatorShare;
+        }
+
+        emit PrizeClaimed(winner, winnerShare);
     }
 
     /// @notice Accepts direct prize pool funding.
