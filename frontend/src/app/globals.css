@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @import "tailwindcss";
 
@@ -19,6 +19,12 @@
   --accent-foreground: 210 40% 98%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 210 40% 98%;
+  --surface: 222 38% 12%;
+  --surface-elevated: 222 35% 14%;
+  --surface-muted: 220 28% 18%;
+  --success: 142 71% 45%;
+  --warning: 28 90% 58%;
+  --info: 198 91% 56%;
   --border: 220 24% 22%;
   --input: 220 24% 22%;
   --ring: 198 91% 56%;
@@ -61,6 +67,12 @@
   --accent-foreground: 210 40% 98%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 210 40% 98%;
+  --surface: 222 38% 12%;
+  --surface-elevated: 222 35% 14%;
+  --surface-muted: 220 28% 18%;
+  --success: 142 71% 45%;
+  --warning: 28 90% 58%;
+  --info: 198 91% 56%;
   --border: 220 24% 22%;
   --input: 220 24% 22%;
   --ring: 198 91% 56%;
@@ -103,6 +115,12 @@
     --accent-foreground: 210 40% 98%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
+    --surface: 222 38% 12%;
+    --surface-elevated: 222 35% 14%;
+    --surface-muted: 220 28% 18%;
+    --success: 142 71% 45%;
+    --warning: 28 90% 58%;
+    --info: 198 91% 56%;
     --border: 220 24% 22%;
     --input: 220 24% 22%;
     --ring: 198 91% 56%;
@@ -126,6 +144,12 @@
     --accent-foreground: 210 40% 98%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
+    --surface: 222 38% 12%;
+    --surface-elevated: 222 35% 14%;
+    --surface-muted: 220 28% 18%;
+    --success: 142 71% 45%;
+    --warning: 28 90% 58%;
+    --info: 198 91% 56%;
     --border: 220 24% 22%;
     --input: 220 24% 22%;
     --ring: 198 91% 56%;
@@ -137,10 +161,10 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Space Grotesk', 'IBM Plex Sans', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     background-image: radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 45%),
-      radial-gradient(circle at 20% 30%, rgba(249, 115, 22, 0.15), transparent 40%),
-      linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(2, 6, 23, 0.95));
+      radial-gradient(circle at 15% 25%, rgba(249, 115, 22, 0.12), transparent 38%),
+      linear-gradient(135deg, rgba(12, 18, 38, 0.88), rgba(2, 6, 23, 0.95));
     min-height: 100vh;
   }
 
@@ -148,10 +172,29 @@
   h2,
   h3,
   h4 {
-    font-family: 'Space Grotesk', 'IBM Plex Sans', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.5),
+      0 0 0 4px hsl(var(--background));
   }
 }
 
 .app-shell {
   min-height: 100vh;
+}
+
+.surface-card {
+  background-color: hsl(var(--surface));
+}
+
+.surface-elevated {
+  background-color: hsl(var(--surface-elevated));
+}
+
+.surface-muted {
+  background-color: hsl(var(--surface-muted));
 }

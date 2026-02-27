@@ -12,6 +12,21 @@ const config: Config = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+      },
+      fontSize: {
+        hero: ['3rem', { lineHeight: '1.05', letterSpacing: '-0.02em' }],
+        h1: ['2.25rem', { lineHeight: '1.1', letterSpacing: '-0.02em' }],
+        h2: ['1.75rem', { lineHeight: '1.2', letterSpacing: '-0.01em' }],
+        body: ['1rem', { lineHeight: '1.6' }],
+        small: ['0.875rem', { lineHeight: '1.5' }],
+        xs: ['0.75rem', { lineHeight: '1.4' }],
+      },
+      letterSpacing: {
+        label: '0.08em',
+      },
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
@@ -84,6 +99,8 @@ const config: Config = {
       },
       boxShadow: {
         glow: '0 0 30px rgba(56, 189, 248, 0.25)',
+        soft: '0 10px 30px rgba(15, 23, 42, 0.25)',
+        card: '0 18px 40px rgba(15, 23, 42, 0.35)',
       },
     },
   },

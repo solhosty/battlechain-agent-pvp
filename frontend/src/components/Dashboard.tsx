@@ -1,38 +1,22 @@
 'use client'
 
 import React, { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { formatEther } from 'viem'
 import type { Address } from 'viem'
 import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
 import { useBattleChain } from '@/hooks/useBattleChain'
 import {
-  createBattle,
   claimPrize,
   getAgentsByOwner,
   getGasOverrides,
   registerAgent,
 } from '@/utils/battlechain'
-import { ChallengeType } from '@/types/contracts'
 import { toast } from '@/components/ui/toast'
 import { formatWalletError } from '@/utils/walletErrors'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-
-type CreatePhase =
-  | 'idle'
-  | 'awaiting_wallet'
-  | 'submitted'
-  | 'confirming'
-  | 'timeout'
-  | 'error'
-  | 'success'
+import { Heading, Label, Text } from '@/components/ui/typography'
+import { BattleCardSkeleton } from '@/components/ui/skeletons'
 
 const DashboardContent: React.FC = () => {
   const {
@@ -54,132 +38,10 @@ const DashboardContent: React.FC = () => {
   const { data: walletClient } = useWalletClient({
     chainId: hasExpectedChainId ? expectedChainId : undefined,
   })
-  const rpcUrl = process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL
   const router = useRouter()
   const [savedAgents, setSavedAgents] = useState<Address[]>([])
   const [selectedAgent, setSelectedAgent] = useState<Address | ''>('')
-  const [createOpen, setCreateOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [createPhase, setCreatePhase] = useState<CreatePhase>('idle')
-  const [createForm, setCreateForm] = useState({
-    challengeType: ChallengeType.REENTRANCY_VAULT,
-    entryFee: '0.05',
-    maxAgents: '4',
-    durationHours: '24',
-  })
   const [claimingBattle, setClaimingBattle] = useState<bigint | null>(null)
-
-  const waitForReceiptWithTimeout = async (hash: `0x${string}`) => {
-    if (!publicClient) {
-      throw new Error(
-        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
-      )
-    }
-
-    try {
-      return await publicClient.waitForTransactionReceipt({
-        hash,
-        timeout: 120_000,
-        pollingInterval: 2_000,
-      })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      if (message.toLowerCase().includes('timeout')) {
-        throw new Error('RPC timeout — try again')
-      }
-      throw error
-    }
-  }
-
-  const gasBufferSteps = [120n, 130n, 150n]
-
-  const applyGasBuffer = (gasPrice: bigint, buffer: bigint) =>
-    (gasPrice * buffer) / 100n
-
-  const getErrorMessage = (error: unknown) =>
-    error instanceof Error ? error.message : String(error)
-
-  const isReplacementUnderpriced = (message: string) =>
-    message.includes('insufficient gas price to replace existing transaction') ||
-    message.includes('replacement transaction underpriced')
-
-  const isNonceTooLow = (message: string) => message.includes('nonce too low')
-
-  const isAlreadyKnown = (message: string) => message.includes('already known')
-
-  const shouldRetryTx = (message: string) =>
-    isReplacementUnderpriced(message) ||
-    isNonceTooLow(message) ||
-    isAlreadyKnown(message)
-
-  const shouldRefreshNonce = (message: string) => isNonceTooLow(message)
-
-  const backoff = async (attempt: number) => {
-    const delay = 500 * 2 ** attempt
-    await new Promise((resolve) => setTimeout(resolve, delay))
-  }
-
-  const sendCreateBattleWithRetry = async (
-    challengeType: ChallengeType,
-    entryFee: number,
-    maxAgents: number,
-    durationSeconds: number,
-  ) => {
-    if (!publicClient) {
-      throw new Error(
-        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
-      )
-    }
-
-    if (!walletClient) {
-      throw new Error('Wallet client unavailable. Reconnect wallet and try again.')
-    }
-
-    const sender = account ?? walletClient.account?.address
-    if (!sender) {
-      throw new Error('Wallet account unavailable. Reconnect wallet and try again.')
-    }
-
-    let nonce = await publicClient.getTransactionCount({
-      address: sender,
-      blockTag: 'pending',
-    })
-
-    for (let attempt = 0; attempt < gasBufferSteps.length; attempt += 1) {
-      const gasPrice = await publicClient.getGasPrice()
-      const overrides = {
-        gasPrice: applyGasBuffer(gasPrice, gasBufferSteps[attempt]),
-        nonce,
-      }
-
-      try {
-        return await createBattle(
-          walletClient,
-          challengeType,
-          entryFee,
-          maxAgents,
-          durationSeconds,
-          overrides,
-        )
-      } catch (error) {
-        const message = getErrorMessage(error).toLowerCase()
-        if (!shouldRetryTx(message) || attempt === gasBufferSteps.length - 1) {
-          throw error
-        }
-
-        if (shouldRefreshNonce(message)) {
-          nonce = await publicClient.getTransactionCount({
-            address: sender,
-            blockTag: 'pending',
-          })
-        }
-
-        await backoff(attempt)
-      }
-    }
-
-    throw new Error('Failed to submit transaction after retries.')
-  }
 
   useEffect(() => {
     fetchBattles()
@@ -263,96 +125,6 @@ const DashboardContent: React.FC = () => {
     }
   }
 
-  const handleCreateBattle = async () => {
-    if (!hasExpectedChainId) {
-      toast.error('Missing NEXT_PUBLIC_CHAIN_ID in frontend env config')
-      setCreatePhase('error')
-      return
-    }
-
-    if (!rpcUrl) {
-      toast.error('Missing NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config')
-      setCreatePhase('error')
-      return
-    }
-
-    if (!publicClient) {
-      toast.error(
-        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
-      )
-      setCreatePhase('error')
-      return
-    }
-
-    if (!walletClient) {
-      toast.error('Connect your wallet to create a battle')
-      setCreatePhase('error')
-      return
-    }
-
-    const actualChainId =
-      chainId ?? walletClient.chain?.id ?? publicClient.chain?.id
-    if (!actualChainId) {
-      toast.error('Unable to detect wallet chain. Reconnect your wallet.')
-      setCreatePhase('error')
-      return
-    }
-    if (actualChainId !== expectedChainId) {
-      toast.error(`Wrong network. Switch to chain ${expectedChainId}.`)
-      setCreatePhase('error')
-      return
-    }
-
-    const entryFee = Number.parseFloat(createForm.entryFee)
-    const maxAgents = Number.parseInt(createForm.maxAgents, 10)
-    const durationHours = Number.parseFloat(createForm.durationHours)
-
-    if (!Number.isFinite(entryFee) || entryFee <= 0) {
-      toast.error('Enter a valid entry fee')
-      return
-    }
-
-    if (!Number.isFinite(maxAgents) || maxAgents < 2) {
-      toast.error('Enter a valid max agents value (min 2)')
-      return
-    }
-
-    if (!Number.isFinite(durationHours) || durationHours <= 0) {
-      toast.error('Enter a valid duration in hours')
-      return
-    }
-
-    const durationSeconds = Math.round(durationHours * 3600)
-    setCreating(true)
-    setCreatePhase('awaiting_wallet')
-
-    try {
-      const hash = await sendCreateBattleWithRetry(
-        createForm.challengeType,
-        entryFee,
-        maxAgents,
-        durationSeconds,
-      )
-      setCreatePhase('submitted')
-      toast('Battle submitted. Waiting for confirmation...')
-      setCreatePhase('confirming')
-      await waitForReceiptWithTimeout(hash)
-      setCreatePhase('success')
-      toast.success('Battle created')
-      setCreateOpen(false)
-      fetchBattles()
-    } catch (error) {
-      const message = formatWalletError(error)
-      console.error('Failed to create battle:', message)
-      setCreatePhase(
-        message.toLowerCase().includes('timeout') ? 'timeout' : 'error',
-      )
-      toast.error(message)
-    } finally {
-      setCreating(false)
-    }
-  }
-
   const handleClaimPrize = async (battleId: bigint) => {
     if (!walletClient) {
       toast.error('Connect your wallet to claim')
@@ -378,19 +150,21 @@ const DashboardContent: React.FC = () => {
 
   return (
     <div className="py-10">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">BattleChain Arena</h1>
-        <p className="text-gray-400">PvP Agent Battle Platform</p>
+      <header className="mb-8 space-y-2">
+        <Heading as="h1" size="h1">
+          BattleChain Arena
+        </Heading>
+        <Text tone="muted">PvP Agent Battle Platform</Text>
       </header>
 
-      <div className="bg-gray-800 p-6 rounded-lg mb-8">
+      <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-card">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
-            <h2 className="text-xl font-semibold">Saved agents</h2>
+            <Label>Saved agents</Label>
             {savedAgents.length === 0 ? (
-              <p className="text-sm text-gray-400">
+              <Text tone="muted" className="text-sm">
                 Deploy an agent in Studio to enable quick assignment.
-              </p>
+              </Text>
             ) : (
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <select
@@ -398,7 +172,7 @@ const DashboardContent: React.FC = () => {
                   onChange={(event) =>
                     setSelectedAgent(event.target.value as Address | '')
                   }
-                  className="w-full max-w-lg rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
+                  className="w-full max-w-lg rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none"
                 >
                   <option value="">Select a saved agent</option>
                   {savedAgents.map((agent) => (
@@ -408,79 +182,103 @@ const DashboardContent: React.FC = () => {
                   ))}
                 </select>
                 {selectedAgent && (
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs font-mono text-muted-foreground">
                     Selected: {selectedAgent.slice(0, 10)}...
                   </span>
                 )}
               </div>
             )}
           </div>
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            Create Battle
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link
+              href="/arena"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-90"
+            >
+              Go to Arena
+            </Link>
+            <Link
+              href="/arena?create=1"
+              className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+            >
+              Quick Battle
+            </Link>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-gray-800 p-6 rounded-lg">
-          <h3 className="text-xl font-semibold mb-2">Active Battles</h3>
-          <p className="text-3xl font-bold text-green-400">
-            {battles.filter(b => b.state === 'Active').length}
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+          <Label>Active battles</Label>
+          <p className="mt-3 text-3xl font-semibold text-emerald-300">
+            {battles.filter((battle) => battle.state === 'Active').length}
           </p>
         </div>
-        <div className="bg-gray-800 p-6 rounded-lg">
-          <h3 className="text-xl font-semibold mb-2">Total Battles</h3>
-          <p className="text-3xl font-bold text-blue-400">{battles.length}</p>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+          <Label>Total battles</Label>
+          <p className="mt-3 text-3xl font-semibold text-sky-300">
+            {battles.length}
+          </p>
         </div>
-        <div className="bg-gray-800 p-6 rounded-lg">
-          <h3 className="text-xl font-semibold mb-2">Your Battles</h3>
-          <p className="text-3xl font-bold text-purple-400">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+          <Label>Your battles</Label>
+          <p className="mt-3 text-3xl font-semibold text-violet-300">
             {creatorBattleIds.length}
           </p>
         </div>
       </div>
 
-      <div className="bg-gray-800 rounded-lg overflow-hidden">
-        <div className="p-6 border-b border-gray-700">
-          <h2 className="text-2xl font-bold">Live Battles</h2>
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+        <div className="border-b border-border p-6">
+          <Heading as="h2" size="h2">
+            Live Battles
+          </Heading>
+          <Text tone="muted" className="mt-1 text-sm">
+            Assign agents or claim prizes from resolved matches.
+          </Text>
         </div>
-        
+
         {loading ? (
-          <div className="p-8 text-center text-gray-400">Loading battles...</div>
+          <div className="grid gap-4 p-6">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <BattleCardSkeleton key={`battle-skeleton-${index}`} />
+            ))}
+          </div>
         ) : battles.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">No battles found</div>
+          <div className="p-8 text-center text-sm text-muted-foreground">
+            No battles found
+          </div>
         ) : (
-          <div className="divide-y divide-gray-700">
+          <div className="divide-y divide-border">
             {battles.map((battle) => (
-              
-              <div key={battle.id} className="p-6 hover:bg-gray-700 transition">
-                <div className="flex justify-between items-center">
+              <div key={battle.id} className="p-6 transition hover:bg-muted/30">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h3 className="text-xl font-semibold mb-1">
+                    <Heading as="h3" size="h3" className="text-xl">
                       Battle #{battle.id}
-                    </h3>
-                    <p className="text-gray-400 text-sm">
+                    </Heading>
+                    <Text tone="muted" className="text-sm">
                       Challenge: {battle.challenge.slice(0, 10)}...
-                    </p>
+                    </Text>
                   </div>
-                  <div className="text-right">
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                      battle.state === 'Active' ? 'bg-green-600' :
-                      battle.state === 'Resolved' ? 'bg-blue-600' :
-                      'bg-gray-600'
-                    }`}>
+                  <div className="text-left sm:text-right">
+                    <span
+                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                        battle.state === 'Active'
+                          ? 'bg-emerald-500/20 text-emerald-200'
+                          : battle.state === 'Resolved'
+                          ? 'bg-sky-500/20 text-sky-200'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
                       {battle.state}
                     </span>
-                    <p className="text-gray-400 text-sm mt-1">
+                    <Text tone="muted" className="mt-1 text-sm">
                       Entry: {battle.entryFee} ETH
-                    </p>
+                    </Text>
                   </div>
                 </div>
                 {claimablePrizesByBattle[battle.id.toString()] ? (
-                  <div className="mt-4 rounded-lg bg-gray-900/60 p-3 text-sm text-emerald-200">
+                  <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-900/20 p-3 text-sm text-emerald-100">
                     Claimable prize:{' '}
                     {formatEther(
                       claimablePrizesByBattle[battle.id.toString()],
@@ -488,10 +286,10 @@ const DashboardContent: React.FC = () => {
                     ETH
                   </div>
                 ) : null}
-                <div className="mt-4 flex gap-4">
+                <div className="mt-4 flex flex-wrap gap-3">
                   <button
                     onClick={() => handleViewDetails(battle.id)}
-                    className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm"
+                    className="rounded-md border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
                   >
                     View Details
                   </button>
@@ -499,10 +297,10 @@ const DashboardContent: React.FC = () => {
                     <button
                       disabled={!isConnected}
                       onClick={() => handleAssignAgent(battle.id)}
-                      className={`px-4 py-2 rounded text-sm ${
+                      className={`rounded-md px-4 py-2 text-sm font-semibold ${
                         isConnected && selectedAgent
-                          ? 'bg-green-600 hover:bg-green-700'
-                          : 'bg-gray-600 cursor-not-allowed'
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                          : 'bg-muted text-muted-foreground'
                       }`}
                     >
                       {!isConnected
@@ -516,10 +314,10 @@ const DashboardContent: React.FC = () => {
                     <button
                       disabled={!isConnected || claimingBattle === battle.id}
                       onClick={() => handleClaimPrize(battle.id)}
-                      className={`px-4 py-2 rounded text-sm ${
+                      className={`rounded-md px-4 py-2 text-sm font-semibold ${
                         isConnected
-                          ? 'bg-emerald-600 hover:bg-emerald-700'
-                          : 'bg-gray-600 cursor-not-allowed'
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                          : 'bg-muted text-muted-foreground'
                       }`}
                     >
                       {claimingBattle === battle.id
@@ -533,117 +331,6 @@ const DashboardContent: React.FC = () => {
           </div>
         )}
       </div>
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create battle</DialogTitle>
-            <DialogDescription>
-              Configure the battle parameters before deploying on-chain.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-200">
-                Challenge type
-              </label>
-              <select
-                value={createForm.challengeType}
-                onChange={(event) =>
-                  setCreateForm((current) => ({
-                    ...current,
-                    challengeType: Number(event.target.value) as ChallengeType,
-                  }))
-                }
-                className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
-              >
-                <option value={ChallengeType.REENTRANCY_VAULT}>
-                  Reentrancy Vault
-                </option>
-              </select>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-200">
-                  Entry fee (ETH)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={createForm.entryFee}
-                  onChange={(event) =>
-                    setCreateForm((current) => ({
-                      ...current,
-                      entryFee: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-200">
-                  Max agents
-                </label>
-                <input
-                  type="number"
-                  min="2"
-                  max="10"
-                  value={createForm.maxAgents}
-                  onChange={(event) =>
-                    setCreateForm((current) => ({
-                      ...current,
-                      maxAgents: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-200">
-                  Duration (hours)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={createForm.durationHours}
-                  onChange={(event) =>
-                    setCreateForm((current) => ({
-                      ...current,
-                      durationHours: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <button
-              type="button"
-              onClick={() => setCreateOpen(false)}
-              className="rounded-lg border border-gray-600 px-4 py-2 text-sm text-gray-200 hover:border-gray-500"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleCreateBattle}
-              disabled={creating}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-600"
-            >
-              {createPhase === 'awaiting_wallet'
-                ? 'Awaiting wallet confirmation...'
-                : createPhase === 'confirming'
-                ? 'Confirming on-chain...'
-                : creating
-                ? 'Creating...'
-                : 'Create battle'}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
@@ -658,7 +345,7 @@ const Dashboard: React.FC = () => {
   return isMounted ? (
     <DashboardContent />
   ) : (
-    <div className="py-10 text-gray-400">Loading dashboard...</div>
+    <div className="py-10 text-sm text-muted-foreground">Loading dashboard...</div>
   )
 }
 

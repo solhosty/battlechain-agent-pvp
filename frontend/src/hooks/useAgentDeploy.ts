@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Abi, Address } from 'viem'
-import { encodeDeployData, parseEventLogs } from 'viem'
+import { ContractFunctionExecutionError, encodeDeployData, parseEventLogs } from 'viem'
 import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
 import {
   AGENT_CREATED_EVENT,
@@ -145,14 +145,31 @@ export const useAgentDeploy = () => {
     }
   })()
 
+  const isSilentAgentReadError = (error: unknown) => {
+    if (!(error instanceof ContractFunctionExecutionError)) return false
+    const message = (error.shortMessage ?? error.message).toLowerCase()
+    return (
+      message.includes('returned no data') ||
+      message.includes('does not have the function')
+    )
+  }
+
   const refreshAgents = async (owner: Address) => {
     if (!publicClient) {
       return []
     }
 
-    const agents = await getAgentsByOwner(publicClient, owner)
-    setSavedAgents(agents)
-    return agents
+    try {
+      const agents = await getAgentsByOwner(publicClient, owner)
+      setSavedAgents(agents)
+      return agents
+    } catch (error) {
+      if (isSilentAgentReadError(error)) {
+        setSavedAgents([])
+        return []
+      }
+      throw error
+    }
   }
 
   useEffect(() => {

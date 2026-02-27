@@ -9,6 +9,9 @@ import { formatEther } from 'viem'
 import type { BattleSummary } from '@/types/contracts'
 import { toast } from '@/components/ui/toast'
 import { formatWalletError } from '@/utils/walletErrors'
+import { cn } from '@/lib/utils'
+import { AgentCardSkeleton, BattleCardSkeleton } from '@/components/ui/skeletons'
+import { Heading, Label, Text } from '@/components/ui/typography'
 
 interface Agent {
   address: string;
@@ -182,86 +185,122 @@ const SpectatorView: React.FC = () => {
 
   return (
     <div className="py-10">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Spectator Arena</h1>
-        <p className="text-gray-400">Watch battles and place bets on your favorite agents</p>
+      <header className="mb-8 space-y-2">
+        <Heading as="h1" size="h1">
+          Spectator Arena
+        </Heading>
+        <Text tone="muted">
+          Watch battles and place bets on your favorite agents.
+        </Text>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Battle List */}
-        <div className="lg:col-span-2">
-          <h2 className="text-2xl font-bold mb-4">Live Battles</h2>
-          
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          <div className="flex items-center justify-between">
+            <Heading as="h2" size="h2">
+              Live Battles
+            </Heading>
+            <Text tone="muted" className="text-sm">
+              {battles.filter((battle) => battle.state === 'Active').length} active
+            </Text>
+          </div>
+
           {loading ? (
-            <div className="text-center text-gray-400 py-8">Loading battles...</div>
-          ) : battles.filter(b => b.state === 'Active').length === 0 ? (
-            <div className="text-center text-gray-400 py-8">No active battles</div>
+            <div className="grid gap-4">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <BattleCardSkeleton key={`spectator-battle-${index}`} />
+              ))}
+            </div>
+          ) : battles.filter((battle) => battle.state === 'Active').length === 0 ? (
+            <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+              No active battles
+            </div>
           ) : (
             <div className="grid gap-4">
-              {battles.filter(b => b.state === 'Active').map((battle) => (
-                <div
-                  key={battle.id}
-                  onClick={() => setSelectedBattle(battle)}
-                  className={`bg-gray-800 p-6 rounded-lg cursor-pointer transition ${
-                    selectedBattle?.id === battle.id ? 'ring-2 ring-blue-500' : 'hover:bg-gray-700'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-xl font-semibold">Battle #{battle.id}</h3>
-                      <p className="text-gray-400 text-sm mt-1">
-                        Entry Fee: {battle.entryFee} ETH
-                      </p>
+              {battles
+                .filter((battle) => battle.state === 'Active')
+                .map((battle) => (
+                  <button
+                    key={battle.id}
+                    onClick={() => setSelectedBattle(battle)}
+                    className={cn(
+                      'rounded-2xl border border-border bg-card p-6 text-left shadow-soft transition',
+                      selectedBattle?.id === battle.id
+                        ? 'border-primary/60 ring-1 ring-primary/40'
+                        : 'hover:bg-muted/50',
+                    )}
+                  >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <Heading as="h3" size="h3" className="text-xl">
+                          Battle #{battle.id}
+                        </Heading>
+                        <Text tone="muted" className="mt-1 text-sm">
+                          Entry Fee: {battle.entryFee} ETH
+                        </Text>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                        <Text className="text-sm text-emerald-300">Live</Text>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                      <span className="text-green-400 font-medium">Live</span>
+                    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span>Ends: {battle.deadline}</span>
+                      <span>•</span>
+                      <span>Challenge: {battle.challenge.slice(0, 10)}...</span>
                     </div>
-                  </div>
-                  <div className="mt-4 flex items-center gap-4 text-sm text-gray-400">
-                    <span>Ends: {battle.deadline}</span>
-                    <span>•</span>
-                    <span>Challenge: {battle.challenge.slice(0, 10)}...</span>
-                  </div>
-                </div>
-              ))}
+                  </button>
+                ))}
             </div>
           )}
         </div>
 
-        {/* Betting Panel */}
-        <div className="bg-gray-800 p-6 rounded-lg h-fit">
-          <h2 className="text-2xl font-bold mb-4">Place Bet</h2>
-          
+        <div
+          className={cn(
+            'h-fit rounded-2xl border border-border bg-card p-6 shadow-card',
+            selectedBattle ? 'block' : 'hidden lg:block',
+          )}
+        >
+          <Heading as="h2" size="h2" className="mb-4">
+            Place Bet
+          </Heading>
+
           {selectedBattle ? (
             <div>
               <div className="mb-4">
-                <p className="text-gray-400 text-sm mb-2">Selected Battle</p>
-                <p className="font-semibold">Battle #{selectedBattle.id}</p>
+                <Label>Selected battle</Label>
+                <Text className="mt-2 font-semibold">Battle #{selectedBattle.id}</Text>
               </div>
 
               <div className="mb-4">
-                <p className="text-gray-400 text-sm mb-2">Select Agent</p>
-                <div className="space-y-2">
+                <Label>Select agent</Label>
+                <div className="mt-2 space-y-2">
                   {agentsLoading ? (
-                    <div className="text-sm text-gray-400">Loading agents...</div>
+                    <div className="space-y-2">
+                      {Array.from({ length: 3 }).map((_, index) => (
+                        <AgentCardSkeleton key={`agent-skeleton-${index}`} />
+                      ))}
+                    </div>
                   ) : agents.length === 0 ? (
-                    <div className="text-sm text-gray-400">No agents registered</div>
+                    <Text tone="muted" className="text-sm">
+                      No agents registered
+                    </Text>
                   ) : (
                     agents.map((agent) => (
                       <button
                         key={agent.index}
                         onClick={() => setSelectedAgent(agent.index)}
-                        className={`w-full p-3 rounded-lg text-left transition ${
+                        className={cn(
+                          'w-full rounded-lg border border-border p-3 text-left transition',
                           selectedAgent === agent.index
-                            ? 'bg-blue-600'
-                            : 'bg-gray-700 hover:bg-gray-600'
-                        }`}
+                            ? 'border-primary/60 bg-primary/10'
+                            : 'bg-background hover:bg-muted/50',
+                        )}
                       >
-                        <p className="font-medium">{agent.name}</p>
-                        <p className="text-sm text-gray-400">
+                        <Text className="font-medium">{agent.name}</Text>
+                        <Text tone="muted" className="font-mono text-xs">
                           {agent.address.slice(0, 10)}...
-                        </p>
+                        </Text>
                       </button>
                     ))
                   )}
@@ -269,7 +308,7 @@ const SpectatorView: React.FC = () => {
               </div>
 
               <div className="mb-4">
-                <p className="text-gray-400 text-sm mb-2">Bet Amount (ETH)</p>
+                <Label>Bet amount (ETH)</Label>
                 <input
                   type="number"
                   value={betAmount}
@@ -277,24 +316,28 @@ const SpectatorView: React.FC = () => {
                   placeholder="0.1"
                   step="0.01"
                   min="0"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                  className="mt-2 w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground focus:outline-none"
                 />
               </div>
 
               <button
                 onClick={handlePlaceBet}
                 disabled={!isConnected || betting || selectedAgent === null || !betAmount}
-                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
+                className="w-full rounded-lg bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {betting ? 'Placing Bet...' : isConnected ? 'Place Bet' : 'Connect to Bet'}
               </button>
 
-              <div className="mt-4 p-4 bg-gray-700 rounded-lg">
-                <p className="text-sm text-gray-400">Potential Payout</p>
-                <p className="text-xl font-bold text-green-400">
-                  {betAmount ? `${(parseFloat(betAmount) * 2).toFixed(2)} ETH` : '-'} 
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Based on current odds</p>
+              <div className="mt-4 rounded-lg border border-border bg-background/60 p-4">
+                <Text tone="muted" className="text-sm">
+                  Potential Payout
+                </Text>
+                <Text className="text-xl font-semibold text-emerald-300">
+                  {betAmount ? `${(parseFloat(betAmount) * 2).toFixed(2)} ETH` : '-'}
+                </Text>
+                <Text tone="muted" className="mt-1 text-xs">
+                  Based on current odds
+                </Text>
               </div>
 
               {(() => {
@@ -320,15 +363,17 @@ const SpectatorView: React.FC = () => {
                   )
                 }
                 return (
-                  <div className="mt-4 rounded-lg bg-gray-700 p-4">
-                    <p className="text-sm text-gray-300">Claimable payout</p>
-                    <p className="text-lg font-semibold text-emerald-300">
+                  <div className="mt-4 rounded-lg border border-border bg-background/60 p-4">
+                    <Text tone="muted" className="text-sm">
+                      Claimable payout
+                    </Text>
+                    <Text className="text-lg font-semibold text-emerald-300">
                       {formatEther(payout)} ETH
-                    </p>
+                    </Text>
                     <button
                       onClick={handleClaimPayout}
                       disabled={!isConnected || claimingPayout}
-                      className="mt-3 w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-600"
+                      className="mt-3 w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {claimingPayout ? 'Claiming...' : 'Claim Payout'}
                     </button>
@@ -337,52 +382,81 @@ const SpectatorView: React.FC = () => {
               })()}
             </div>
           ) : (
-            <div className="text-center text-gray-500 py-8">
+            <div className="rounded-lg border border-border bg-background/60 p-4 text-center text-sm text-muted-foreground">
               Select a battle to place bets
             </div>
           )}
         </div>
       </div>
 
-      {/* Leaderboard */}
-      <div className="mt-8 bg-gray-800 p-6 rounded-lg">
-        <h2 className="text-2xl font-bold mb-4">Top Performing Agents</h2>
-        <div className="overflow-x-auto">
-          {leaderboard.rows.length === 0 ? (
-            <div className="text-sm text-gray-400 py-6">
-              No resolved battles yet
-            </div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="text-left border-b border-gray-700">
-                  <th className="pb-3 text-gray-400 font-medium">Rank</th>
-                  <th className="pb-3 text-gray-400 font-medium">Agent</th>
-                  <th className="pb-3 text-gray-400 font-medium">Wins</th>
-                  <th className="pb-3 text-gray-400 font-medium">Total Extracted</th>
-                  <th className="pb-3 text-gray-400 font-medium">Win Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaderboard.rows.map((row, index) => (
-                  <tr key={row.address} className="border-b border-gray-700">
-                    <td className="py-4 font-bold text-yellow-400">
-                      #{index + 1}
-                    </td>
-                    <td className="py-4">
-                      {row.address.slice(0, 10)}...
-                    </td>
-                    <td className="py-4">{row.wins}</td>
-                    <td className="py-4">{row.totalExtracted.toFixed(2)} ETH</td>
-                    <td className="py-4 text-green-400">
+      <div className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-card">
+        <Heading as="h2" size="h2" className="mb-4">
+          Top Performing Agents
+        </Heading>
+        {leaderboard.rows.length === 0 ? (
+          <div className="rounded-lg border border-border bg-background/60 p-6 text-sm text-muted-foreground">
+            No resolved battles yet
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-3 md:hidden">
+              {leaderboard.rows.map((row, index) => (
+                <div
+                  key={row.address}
+                  className="rounded-xl border border-border bg-background/60 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <Label>#{index + 1}</Label>
+                    <Text tone="muted" className="text-xs">
+                      {row.wins} wins
+                    </Text>
+                  </div>
+                  <Text className="mt-2 font-mono text-sm">
+                    {row.address.slice(0, 10)}...
+                  </Text>
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className="text-emerald-300">
                       {row.winRate.toFixed(0)}%
-                    </td>
+                    </span>
+                    <span className="text-muted-foreground">
+                      {row.totalExtracted.toFixed(2)} ETH
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden md:block">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left border-b border-border text-xs uppercase tracking-label text-muted-foreground">
+                    <th className="pb-3">Rank</th>
+                    <th className="pb-3">Agent</th>
+                    <th className="pb-3">Wins</th>
+                    <th className="pb-3">Total Extracted</th>
+                    <th className="pb-3">Win Rate</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                </thead>
+                <tbody>
+                  {leaderboard.rows.map((row, index) => (
+                    <tr key={row.address} className="border-b border-border text-sm">
+                      <td className="py-4 font-semibold text-amber-300">
+                        #{index + 1}
+                      </td>
+                      <td className="py-4 font-mono">
+                        {row.address.slice(0, 10)}...
+                      </td>
+                      <td className="py-4">{row.wins}</td>
+                      <td className="py-4">{row.totalExtracted.toFixed(2)} ETH</td>
+                      <td className="py-4 text-emerald-300">
+                        {row.winRate.toFixed(0)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
