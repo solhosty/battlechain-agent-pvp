@@ -111,8 +111,6 @@ contract Battle is IBattle {
     function resolveBattle() external onlyArena whenState(IBattle.BattleState.ACTIVE) {
         require(block.timestamp >= deadline, "Battle still active");
         
-        state = IBattle.BattleState.EXECUTING;
-        
         address winningAgent;
         uint256 highestExtraction;
         uint256[] memory extractions = new uint256[](agents.length);

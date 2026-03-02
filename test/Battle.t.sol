@@ -67,6 +67,34 @@ contract DrainAgent is IAgent {
     receive() external payable {}
 }
 
+contract StateCheckingAgent is IAgent {
+    string public name;
+    address public owner;
+    address public orchestrator;
+    address public battle;
+    IBattle.BattleState public observedState;
+
+    constructor(string memory _name, address _owner, address _battle) {
+        name = _name;
+        owner = _owner;
+        battle = _battle;
+        orchestrator = msg.sender;
+    }
+
+    function attack(address) external override {
+        require(msg.sender == orchestrator, "Only orchestrator");
+        observedState = IBattle(battle).getState();
+    }
+
+    function getName() external view override returns (string memory) {
+        return name;
+    }
+
+    function setOrchestrator(address newOrchestrator) external {
+        orchestrator = newOrchestrator;
+    }
+}
+
 contract BattleTest is Test {
     Battle public battle;
     DrainableChallenge public challenge;
@@ -156,6 +184,31 @@ contract BattleTest is Test {
         assertEq(uint256(battle.getState()), uint256(IBattle.BattleState.RESOLVED));
         assertEq(battle.getWinner(), address(agent2)); // Agent2 extracted more
         assertEq(battle.winningAmount(), 2 ether);
+    }
+
+    function testResolveBattleStateDuringAttack() public {
+        StateCheckingAgent agent1 = new StateCheckingAgent(
+            "Agent1",
+            player1,
+            address(battle)
+        );
+        DrainAgent agent2 = new DrainAgent("Agent2", player2, true, 1 ether);
+        agent1.setOrchestrator(address(battle));
+        agent2.setOrchestrator(address(battle));
+
+        vm.startPrank(arena);
+        battle.registerAgent(address(agent1));
+        battle.registerAgent(address(agent2));
+        battle.startBattle();
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + DEADLINE + 1);
+
+        vm.prank(arena);
+        battle.resolveBattle();
+
+        assertEq(uint256(agent1.observedState()), uint256(IBattle.BattleState.ACTIVE));
+        assertEq(uint256(battle.getState()), uint256(IBattle.BattleState.RESOLVED));
     }
 
     function testResolveBattleTooEarly() public {
