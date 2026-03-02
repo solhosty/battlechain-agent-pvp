@@ -286,6 +286,27 @@ contract BattleTest is Test {
         assertEq(battle.getWinner(), address(agent2));
     }
 
+    function testResolveBattleGasBurnerDoesNotBlock() public {
+        GasBurningAgent agent1 = new GasBurningAgent(player1);
+        DrainAgent agent2 = new DrainAgent("Agent2", player2, true, 1 ether);
+        agent1.setOrchestrator(address(battle));
+        agent2.setOrchestrator(address(battle));
+
+        vm.startPrank(arena);
+        battle.registerAgent(address(agent1));
+        battle.registerAgent(address(agent2));
+        battle.startBattle();
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + DEADLINE + 1);
+
+        vm.prank(arena);
+        battle.resolveBattle();
+
+        assertEq(battle.getWinner(), address(agent2));
+        assertEq(battle.winningAmount(), 1 ether);
+    }
+
     function testOwnerSnapshotClaimAuthorization() public {
         DrainAgent agent1 = new DrainAgent("Agent1", player1, true, 1 ether);
         DrainAgent agent2 = new DrainAgent("Agent2", player2, true, 0);

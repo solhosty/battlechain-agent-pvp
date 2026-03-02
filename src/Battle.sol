@@ -120,23 +120,27 @@ contract Battle is IBattle {
         
         for (uint256 i = 0; i < agents.length; i++) {
             uint256 beforeBalance = address(challenge).balance;
-            
-            try IAgent(agents[i]).attack{gas: AGENT_GAS_LIMIT}(address(challenge)) {
-                uint256 afterBalance = address(challenge).balance;
-                uint256 extracted = beforeBalance > afterBalance
-                    ? beforeBalance - afterBalance
-                    : 0;
-                extractions[i] = extracted;
-                
-                if (extracted > highestExtraction) {
-                    highestExtraction = extracted;
-                    winningAgent = agents[i];
-                    tie = false;
-                } else if (extracted == highestExtraction && extracted > 0) {
-                    tie = true;
-                }
-            } catch {
+
+            (bool success, ) = agents[i].call{gas: AGENT_GAS_LIMIT}(
+                abi.encodeWithSelector(IAgent.attack.selector, address(challenge))
+            );
+            if (!success) {
                 extractions[i] = 0;
+                continue;
+            }
+
+            uint256 afterBalance = address(challenge).balance;
+            uint256 extracted = beforeBalance > afterBalance
+                ? beforeBalance - afterBalance
+                : 0;
+            extractions[i] = extracted;
+
+            if (extracted > highestExtraction) {
+                highestExtraction = extracted;
+                winningAgent = agents[i];
+                tie = false;
+            } else if (extracted == highestExtraction && extracted > 0) {
+                tie = true;
             }
         }
 

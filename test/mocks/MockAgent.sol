@@ -63,3 +63,30 @@ contract MockAgent is IAgent {
 
     receive() external payable {}
 }
+
+contract GasBurningAgent is IAgent {
+    address public orchestrator;
+    address private agentOwner;
+
+    constructor(address _owner) {
+        agentOwner = _owner;
+        orchestrator = msg.sender;
+    }
+
+    function attack(address) external override {
+        require(msg.sender == orchestrator, "Only orchestrator");
+        while (gasleft() > 0) {}
+    }
+
+    function getName() external pure override returns (string memory) {
+        return "GasBurningAgent";
+    }
+
+    function owner() external view override returns (address) {
+        return agentOwner;
+    }
+
+    function setOrchestrator(address newOrchestrator) external {
+        orchestrator = newOrchestrator;
+    }
+}
