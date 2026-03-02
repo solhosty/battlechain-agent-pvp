@@ -5,6 +5,7 @@ import "./interfaces/IBattle.sol";
 
 contract SpectatorBetting {
     uint256 public constant ODDS_SCALE = 1e18;
+    uint256 public constant MIN_COMMIT_DELAY = 5 minutes;
 
     struct Bet {
         uint256 amount;
@@ -19,6 +20,7 @@ contract SpectatorBetting {
 
     mapping(uint256 => BattleInfo) public battles;
     mapping(uint256 => mapping(uint256 => mapping(address => Bet))) public bets;
+    mapping(uint256 => mapping(address => mapping(bytes32 => uint256))) public betCommits;
     mapping(uint256 => mapping(uint256 => uint256)) public totalWageredPerAgent;
     mapping(uint256 => uint256) public totalPool;
     mapping(uint256 => address[]) public battleAgents;
@@ -34,6 +36,7 @@ contract SpectatorBetting {
         uint256 agentIndex,
         uint256 amount
     );
+    event BetCommitted(uint256 indexed battleId, address indexed bettor, bytes32 commitHash);
     event BetClaimed(
         uint256 indexed battleId,
         address indexed bettor,
@@ -95,25 +98,57 @@ contract SpectatorBetting {
         emit BattleRegistered(battleId, agents);
     }
 
-    /// @notice Places a bet on a specific agent for a battle.
-    function placeBet(uint256 battleId, uint256 agentIndex)
+    /// @notice Records a bet commitment hash for later reveal.
+    function commitBet(uint256 battleId, bytes32 commitHash)
         external
-        payable
         whenNotPaused
         onlyEOA
     {
-        require(msg.value > 0, "Bet must be positive");
+        require(commitHash != bytes32(0), "Invalid commit");
+        require(battles[battleId].startTime > 0, "Battle not registered");
+        require(block.timestamp < battles[battleId].startTime, "Battle started");
+        require(
+            block.timestamp + MIN_COMMIT_DELAY <= battles[battleId].startTime,
+            "Commit too late"
+        );
+        require(betCommits[battleId][msg.sender][commitHash] == 0, "Commit exists");
+
+        betCommits[battleId][msg.sender][commitHash] = block.timestamp;
+        emit BetCommitted(battleId, msg.sender, commitHash);
+    }
+
+    /// @notice Reveals a committed bet and adds it to the pool.
+    function revealBet(
+        uint256 battleId,
+        uint256 agentIndex,
+        uint256 amount,
+        bytes32 salt
+    ) external payable whenNotPaused onlyEOA {
+        require(amount > 0, "Bet must be positive");
+        require(msg.value == amount, "Incorrect value");
         require(battles[battleId].startTime > 0, "Battle not registered");
         require(block.timestamp < battles[battleId].startTime, "Battle started");
         require(agentIndex < battleAgents[battleId].length, "Invalid agent index");
 
+        bytes32 commitHash = getCommitHash(msg.sender, battleId, agentIndex, amount, salt);
+        uint256 commitTimestamp = betCommits[battleId][msg.sender][commitHash];
+        require(commitTimestamp != 0, "No commit");
+        require(block.timestamp >= commitTimestamp + MIN_COMMIT_DELAY, "Commit too recent");
+
+        delete betCommits[battleId][msg.sender][commitHash];
+
         Bet storage bet = bets[battleId][agentIndex][msg.sender];
-        bet.amount += msg.value;
+        bet.amount += amount;
 
-        totalWageredPerAgent[battleId][agentIndex] += msg.value;
-        totalPool[battleId] += msg.value;
+        totalWageredPerAgent[battleId][agentIndex] += amount;
+        totalPool[battleId] += amount;
 
-        emit BetPlaced(battleId, msg.sender, agentIndex, msg.value);
+        emit BetPlaced(battleId, msg.sender, agentIndex, amount);
+    }
+
+    /// @notice Legacy bet entrypoint (use commit/reveal instead).
+    function placeBet(uint256, uint256) external payable whenNotPaused onlyEOA {
+        revert("Use commit-reveal");
     }
 
     /// @notice Marks a battle as resolved and sets the winning agent index.
@@ -194,6 +229,17 @@ contract SpectatorBetting {
         if (agentPool == 0) return 0;
         
         return (totalPool[battleId] * ODDS_SCALE) / agentPool;
+    }
+
+    /// @notice Computes the commit hash for a bet reveal.
+    function getCommitHash(
+        address bettor,
+        uint256 battleId,
+        uint256 agentIndex,
+        uint256 amount,
+        bytes32 salt
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(bettor, battleId, agentIndex, amount, salt));
     }
 
     /// @notice Pauses or unpauses betting.
