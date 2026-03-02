@@ -5,13 +5,17 @@ import "forge-std/Test.sol";
 import "../src/Battle.sol";
 import "../src/interfaces/IAgent.sol";
 import "../src/interfaces/IBattle.sol";
+import "../src/challenges/BaseChallenge.sol";
 import "./mocks/MockAgent.sol";
 
-contract DrainableChallenge {
+contract ExtractableChallenge is BaseChallenge {
     event Drained(address indexed recipient, uint256 amount);
+
+    constructor() BaseChallenge(1) {}
 
     function drain(address recipient, uint256 amount) external {
         require(address(this).balance >= amount, "Insufficient balance");
+        recordExtraction(msg.sender, amount);
         (bool success, ) = payable(recipient).call{value: amount}("");
         require(success, "Drain failed");
         emit Drained(recipient, amount);
@@ -45,7 +49,7 @@ contract DrainAgent is IAgent {
         require(shouldSucceed, "Attack failed");
 
         if (extractionAmount > 0) {
-            DrainableChallenge(payable(target)).drain(
+            ExtractableChallenge(payable(target)).drain(
                 address(this),
                 extractionAmount
             );
@@ -69,7 +73,7 @@ contract DrainAgent is IAgent {
 
 contract BattleTest is Test {
     Battle public battle;
-    DrainableChallenge public challenge;
+    ExtractableChallenge public challenge;
     
     address public arena = address(1);
     address public player1 = address(2);
@@ -80,7 +84,7 @@ contract BattleTest is Test {
     uint256 public constant DEADLINE = 1 days;
 
     function setUp() public {
-        challenge = new DrainableChallenge();
+        challenge = new ExtractableChallenge();
         
         vm.prank(arena);
         battle = new Battle(
@@ -92,7 +96,9 @@ contract BattleTest is Test {
         );
         
         // Fund challenge
-        vm.deal(address(challenge), 10 ether);
+        vm.deal(arena, 10 ether);
+        vm.prank(arena);
+        challenge.deposit{value: 10 ether}();
     }
 
     function testRegisterAgent() public {
@@ -105,6 +111,42 @@ contract BattleTest is Test {
         address[] memory agents = battle.getAgents();
         assertEq(agents.length, 1);
         assertEq(agents[0], address(agent));
+    }
+
+    function testRegisterAgentDuplicateAgent() public {
+        MockAgent agent = new MockAgent("Agent1", player1, true, 0);
+        agent.setOrchestrator(address(battle));
+
+        vm.startPrank(arena);
+        battle.registerAgent(address(agent));
+        vm.expectRevert("Agent already registered");
+        battle.registerAgent(address(agent));
+        vm.stopPrank();
+    }
+
+    function testRegisterAgentDuplicateOwner() public {
+        MockAgent agent1 = new MockAgent("Agent1", player1, true, 0);
+        MockAgent agent2 = new MockAgent("Agent2", player1, true, 0);
+        agent1.setOrchestrator(address(battle));
+        agent2.setOrchestrator(address(battle));
+
+        vm.startPrank(arena);
+        battle.registerAgent(address(agent1));
+        vm.expectRevert("Owner already registered");
+        battle.registerAgent(address(agent2));
+        vm.stopPrank();
+    }
+
+    function testRegisterAgentRejectsEOA() public {
+        vm.prank(arena);
+        vm.expectRevert("Invalid agent");
+        battle.registerAgent(player1);
+    }
+
+    function testRegisterAgentRejectsChallengeAddress() public {
+        vm.prank(arena);
+        vm.expectRevert("Invalid agent");
+        battle.registerAgent(address(challenge));
     }
 
     function testStartBattle() public {

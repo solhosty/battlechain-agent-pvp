@@ -19,8 +19,23 @@ contract MockBattle {
 }
 
 contract BettingCaller {
-    function placeBet(address bettingAddress, uint256 battleId, uint256 agentIndex) external payable {
-        SpectatorBetting(bettingAddress).placeBet{value: msg.value}(battleId, agentIndex);
+    function commitBet(address bettingAddress, uint256 battleId, bytes32 commitment) external {
+        SpectatorBetting(bettingAddress).commitBet(battleId, commitment);
+    }
+
+    function revealBet(
+        address bettingAddress,
+        uint256 battleId,
+        uint256 agentIndex,
+        uint256 amount,
+        bytes32 salt
+    ) external payable {
+        SpectatorBetting(bettingAddress).revealBet{value: msg.value}(
+            battleId,
+            agentIndex,
+            amount,
+            salt
+        );
     }
 }
 
@@ -35,6 +50,16 @@ contract SpectatorBettingTest is Test {
     
     uint256 public constant BATTLE_ID = 0;
     uint256 public constant START_TIME = 1000;
+
+    function _commitment(
+        uint256 battleId,
+        uint256 agentIndex,
+        uint256 amount,
+        bytes32 salt,
+        address bettor
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(battleId, agentIndex, amount, salt, bettor));
+    }
 
     function setUp() public {
         betting = new SpectatorBetting(arena);
@@ -51,12 +76,19 @@ contract SpectatorBettingTest is Test {
         betting.registerBattle(BATTLE_ID, address(battle), agents, START_TIME);
     }
 
-    function testPlaceBet() public {
+    function testCommitRevealBet() public {
         vm.deal(spectator1, 2 ether);
-        vm.warp(START_TIME - 1);
-        
+
+        bytes32 salt = keccak256("salt");
+        bytes32 commitment = _commitment(BATTLE_ID, 0, 1 ether, salt, spectator1);
+
+        vm.warp(START_TIME - 120);
         vm.prank(spectator1);
-        betting.placeBet{value: 1 ether}(BATTLE_ID, 0);
+        betting.commitBet(BATTLE_ID, commitment);
+
+        vm.warp(START_TIME - 1);
+        vm.prank(spectator1);
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 0, 1 ether, salt);
         
         (uint256 amount, bool claimed) = betting.bets(BATTLE_ID, 0, spectator1);
         assertEq(amount, 1 ether);
@@ -65,36 +97,57 @@ contract SpectatorBettingTest is Test {
         assertEq(betting.totalPool(BATTLE_ID), 1 ether);
     }
 
-    function testPlaceBetBattleStarted() public {
+    function testRevealBetBattleStarted() public {
         vm.deal(spectator1, 2 ether);
+        bytes32 salt = keccak256("salt");
+        bytes32 commitment = _commitment(BATTLE_ID, 0, 1 ether, salt, spectator1);
+
+        vm.warp(START_TIME - 120);
+        vm.prank(spectator1);
+        betting.commitBet(BATTLE_ID, commitment);
+
         vm.warp(START_TIME + 1);
-        
         vm.prank(spectator1);
         vm.expectRevert("Battle started");
-        betting.placeBet{value: 1 ether}(BATTLE_ID, 0);
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 0, 1 ether, salt);
     }
 
-    function testPlaceBetInvalidAgent() public {
+    function testRevealBetInvalidAgent() public {
         vm.deal(spectator1, 2 ether);
-        vm.warp(START_TIME - 1);
-        
+        bytes32 salt = keccak256("salt");
+        bytes32 commitment = _commitment(BATTLE_ID, 10, 1 ether, salt, spectator1);
+
+        vm.warp(START_TIME - 120);
         vm.prank(spectator1);
-        vm.expectRevert(); // Invalid agent index
-        betting.placeBet{value: 1 ether}(BATTLE_ID, 10);
+        betting.commitBet(BATTLE_ID, commitment);
+
+        vm.warp(START_TIME - 1);
+        vm.prank(spectator1);
+        vm.expectRevert("Invalid agent index");
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 10, 1 ether, salt);
     }
 
     function testCalculatePayout() public {
         vm.deal(spectator1, 3 ether);
         vm.deal(spectator2, 3 ether);
         vm.deal(spectator3, 3 ether);
-        vm.warp(START_TIME - 1);
-        
-        // Place bets: 1 ether on agent 0, 2 ether on agent 1
+
+        bytes32 salt1 = keccak256("salt1");
+        bytes32 salt2 = keccak256("salt2");
+        bytes32 commitment1 = _commitment(BATTLE_ID, 0, 1 ether, salt1, spectator1);
+        bytes32 commitment2 = _commitment(BATTLE_ID, 1, 2 ether, salt2, spectator2);
+
+        vm.warp(START_TIME - 120);
         vm.prank(spectator1);
-        betting.placeBet{value: 1 ether}(BATTLE_ID, 0);
-        
+        betting.commitBet(BATTLE_ID, commitment1);
         vm.prank(spectator2);
-        betting.placeBet{value: 2 ether}(BATTLE_ID, 1);
+        betting.commitBet(BATTLE_ID, commitment2);
+
+        vm.warp(START_TIME - 1);
+        vm.prank(spectator1);
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 0, 1 ether, salt1);
+        vm.prank(spectator2);
+        betting.revealBet{value: 2 ether}(BATTLE_ID, 1, 2 ether, salt2);
         
         // Total pool = 3 ether
         // If agent 0 wins: payout = 1 + (1 * 2 / 1) = 3 ether
@@ -109,14 +162,23 @@ contract SpectatorBettingTest is Test {
     function testClaimPayout() public {
         vm.deal(spectator1, 3 ether);
         vm.deal(spectator2, 3 ether);
-        vm.warp(START_TIME - 1);
-        
-        // Place bets
+
+        bytes32 salt1 = keccak256("salt1");
+        bytes32 salt2 = keccak256("salt2");
+        bytes32 commitment1 = _commitment(BATTLE_ID, 0, 1 ether, salt1, spectator1);
+        bytes32 commitment2 = _commitment(BATTLE_ID, 1, 2 ether, salt2, spectator2);
+
+        vm.warp(START_TIME - 120);
         vm.prank(spectator1);
-        betting.placeBet{value: 1 ether}(BATTLE_ID, 0);
-        
+        betting.commitBet(BATTLE_ID, commitment1);
         vm.prank(spectator2);
-        betting.placeBet{value: 2 ether}(BATTLE_ID, 1);
+        betting.commitBet(BATTLE_ID, commitment2);
+
+        vm.warp(START_TIME - 1);
+        vm.prank(spectator1);
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 0, 1 ether, salt1);
+        vm.prank(spectator2);
+        betting.revealBet{value: 2 ether}(BATTLE_ID, 1, 2 ether, salt2);
         
         // Resolve battle - agent 0 wins
         vm.prank(arena);
@@ -140,10 +202,17 @@ contract SpectatorBettingTest is Test {
 
     function testClaimPayoutNotResolved() public {
         vm.deal(spectator1, 2 ether);
-        vm.warp(START_TIME - 1);
-        
+
+        bytes32 salt = keccak256("salt");
+        bytes32 commitment = _commitment(BATTLE_ID, 0, 1 ether, salt, spectator1);
+
+        vm.warp(START_TIME - 120);
         vm.prank(spectator1);
-        betting.placeBet{value: 1 ether}(BATTLE_ID, 0);
+        betting.commitBet(BATTLE_ID, commitment);
+
+        vm.warp(START_TIME - 1);
+        vm.prank(spectator1);
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 0, 1 ether, salt);
         
         vm.prank(spectator1);
         vm.expectRevert("Battle not resolved");
@@ -161,10 +230,17 @@ contract SpectatorBettingTest is Test {
 
     function testClaimPayoutAlreadyClaimed() public {
         vm.deal(spectator1, 2 ether);
-        vm.warp(START_TIME - 1);
-        
+
+        bytes32 salt = keccak256("salt");
+        bytes32 commitment = _commitment(BATTLE_ID, 0, 1 ether, salt, spectator1);
+
+        vm.warp(START_TIME - 120);
         vm.prank(spectator1);
-        betting.placeBet{value: 1 ether}(BATTLE_ID, 0);
+        betting.commitBet(BATTLE_ID, commitment);
+
+        vm.warp(START_TIME - 1);
+        vm.prank(spectator1);
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 0, 1 ether, salt);
         
         vm.prank(arena);
         betting.resolveBets(BATTLE_ID, 0);
@@ -183,16 +259,29 @@ contract SpectatorBettingTest is Test {
         vm.deal(spectator1, 2 ether);
         vm.deal(spectator2, 2 ether);
         vm.deal(spectator3, 2 ether);
-        vm.warp(START_TIME - 1);
 
+        bytes32 salt1 = keccak256("salt1");
+        bytes32 salt2 = keccak256("salt2");
+        bytes32 salt3 = keccak256("salt3");
+        bytes32 commitment1 = _commitment(BATTLE_ID, 0, 1 ether, salt1, spectator1);
+        bytes32 commitment2 = _commitment(BATTLE_ID, 0, 1 ether, salt2, spectator2);
+        bytes32 commitment3 = _commitment(BATTLE_ID, 1, 1 ether, salt3, spectator3);
+
+        vm.warp(START_TIME - 120);
         vm.prank(spectator1);
-        betting.placeBet{value: 1 ether}(BATTLE_ID, 0);
-
+        betting.commitBet(BATTLE_ID, commitment1);
         vm.prank(spectator2);
-        betting.placeBet{value: 1 ether}(BATTLE_ID, 0);
-
+        betting.commitBet(BATTLE_ID, commitment2);
         vm.prank(spectator3);
-        betting.placeBet{value: 1 ether}(BATTLE_ID, 1);
+        betting.commitBet(BATTLE_ID, commitment3);
+
+        vm.warp(START_TIME - 1);
+        vm.prank(spectator1);
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 0, 1 ether, salt1);
+        vm.prank(spectator2);
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 0, 1 ether, salt2);
+        vm.prank(spectator3);
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 1, 1 ether, salt3);
 
         vm.prank(arena);
         betting.resolveBets(BATTLE_ID, 0);
@@ -212,13 +301,23 @@ contract SpectatorBettingTest is Test {
     function testGetOdds() public {
         vm.deal(spectator1, 3 ether);
         vm.deal(spectator2, 3 ether);
-        vm.warp(START_TIME - 1);
-        
+
+        bytes32 salt1 = keccak256("salt1");
+        bytes32 salt2 = keccak256("salt2");
+        bytes32 commitment1 = _commitment(BATTLE_ID, 0, 1 ether, salt1, spectator1);
+        bytes32 commitment2 = _commitment(BATTLE_ID, 1, 2 ether, salt2, spectator2);
+
+        vm.warp(START_TIME - 120);
         vm.prank(spectator1);
-        betting.placeBet{value: 1 ether}(BATTLE_ID, 0);
-        
+        betting.commitBet(BATTLE_ID, commitment1);
         vm.prank(spectator2);
-        betting.placeBet{value: 2 ether}(BATTLE_ID, 1);
+        betting.commitBet(BATTLE_ID, commitment2);
+
+        vm.warp(START_TIME - 1);
+        vm.prank(spectator1);
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 0, 1 ether, salt1);
+        vm.prank(spectator2);
+        betting.revealBet{value: 2 ether}(BATTLE_ID, 1, 2 ether, salt2);
         
         // Total pool = 3 ether
         // Odds for agent 0 = (3 * 1e18) / 1 = 3e18
@@ -237,11 +336,21 @@ contract SpectatorBettingTest is Test {
 
     function testMultipleBetsSameAgent() public {
         vm.deal(spectator1, 5 ether);
-        vm.warp(START_TIME - 1);
-        
+
+        bytes32 salt1 = keccak256("salt1");
+        bytes32 salt2 = keccak256("salt2");
+        bytes32 commitment1 = _commitment(BATTLE_ID, 0, 1 ether, salt1, spectator1);
+        bytes32 commitment2 = _commitment(BATTLE_ID, 0, 2 ether, salt2, spectator1);
+
         vm.startPrank(spectator1);
-        betting.placeBet{value: 1 ether}(BATTLE_ID, 0);
-        betting.placeBet{value: 2 ether}(BATTLE_ID, 0);
+        vm.warp(START_TIME - 200);
+        betting.commitBet(BATTLE_ID, commitment1);
+        vm.warp(START_TIME - 120);
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 0, 1 ether, salt1);
+
+        betting.commitBet(BATTLE_ID, commitment2);
+        vm.warp(START_TIME - 1);
+        betting.revealBet{value: 2 ether}(BATTLE_ID, 0, 2 ether, salt2);
         vm.stopPrank();
         
         (uint256 amount, ) = betting.bets(BATTLE_ID, 0, spectator1);
@@ -265,10 +374,44 @@ contract SpectatorBettingTest is Test {
     function testPlaceBetFromContractReverts() public {
         BettingCaller caller = new BettingCaller();
         vm.deal(address(caller), 1 ether);
-        vm.warp(START_TIME - 1);
+        vm.warp(START_TIME - 120);
+
+        bytes32 salt = keccak256("salt");
+        bytes32 commitment = _commitment(BATTLE_ID, 0, 1 ether, salt, address(caller));
 
         vm.prank(address(caller));
         vm.expectRevert("EOA only");
-        caller.placeBet{value: 1 ether}(address(betting), BATTLE_ID, 0);
+        caller.commitBet(address(betting), BATTLE_ID, commitment);
+    }
+
+    function testRevealBetCommitTooRecent() public {
+        vm.deal(spectator1, 2 ether);
+
+        bytes32 salt = keccak256("salt");
+        bytes32 commitment = _commitment(BATTLE_ID, 0, 1 ether, salt, spectator1);
+
+        vm.warp(START_TIME - 30);
+        vm.prank(spectator1);
+        betting.commitBet(BATTLE_ID, commitment);
+
+        vm.prank(spectator1);
+        vm.expectRevert("Commit too recent");
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 0, 1 ether, salt);
+    }
+
+    function testRevealBetMismatchCommitment() public {
+        vm.deal(spectator1, 2 ether);
+
+        bytes32 salt = keccak256("salt");
+        bytes32 commitment = _commitment(BATTLE_ID, 0, 1 ether, salt, spectator1);
+
+        vm.warp(START_TIME - 120);
+        vm.prank(spectator1);
+        betting.commitBet(BATTLE_ID, commitment);
+
+        vm.warp(START_TIME - 1);
+        vm.prank(spectator1);
+        vm.expectRevert("Invalid reveal");
+        betting.revealBet{value: 1 ether}(BATTLE_ID, 1, 1 ether, salt);
     }
 }

@@ -88,6 +88,8 @@ contract Battle is IBattle {
     {
         require(agents.length < maxAgents, "Max agents reached");
         require(agent != address(0), "Invalid agent");
+        require(agent != challenge, "Invalid agent");
+        require(agent.code.length > 0, "Invalid agent");
         require(!agentRegistered[agent], "Agent already registered");
 
         address owner = _getAgentOwner(agent);
@@ -119,15 +121,15 @@ contract Battle is IBattle {
         bool tie;
         
         for (uint256 i = 0; i < agents.length; i++) {
-            uint256 beforeBalance = address(challenge).balance;
-            
+            uint256 beforeExtraction = BaseChallenge(challenge).getValueExtracted(agents[i]);
+
             try IAgent(agents[i]).attack{gas: AGENT_GAS_LIMIT}(address(challenge)) {
-                uint256 afterBalance = address(challenge).balance;
-                uint256 extracted = beforeBalance > afterBalance
-                    ? beforeBalance - afterBalance
+                uint256 afterExtraction = BaseChallenge(challenge).getValueExtracted(agents[i]);
+                uint256 extracted = afterExtraction > beforeExtraction
+                    ? afterExtraction - beforeExtraction
                     : 0;
                 extractions[i] = extracted;
-                
+
                 if (extracted > highestExtraction) {
                     highestExtraction = extracted;
                     winningAgent = agents[i];

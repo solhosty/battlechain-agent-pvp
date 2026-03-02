@@ -147,4 +147,14 @@ contract ReentrancyVaultTest is Test {
 
         assertEq(vault.getValueExtracted(victim), 5 ether);
     }
+
+    function testGetValueExtractedWithdrawTo() public {
+        vm.prank(victim);
+        vault.deposit{value: 3 ether}();
+
+        vm.prank(victim);
+        vault.withdrawTo(attacker);
+
+        assertEq(vault.getValueExtracted(victim), 3 ether);
+    }
 }

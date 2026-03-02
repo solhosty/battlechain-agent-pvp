@@ -5,10 +5,16 @@ import "./interfaces/IBattle.sol";
 
 contract SpectatorBetting {
     uint256 public constant ODDS_SCALE = 1e18;
+    uint256 public constant MIN_COMMIT_AGE = 1 minutes;
 
     struct Bet {
         uint256 amount;
         bool claimed;
+    }
+
+    struct BetCommit {
+        bytes32 commitment;
+        uint256 timestamp;
     }
 
     struct BattleInfo {
@@ -19,6 +25,7 @@ contract SpectatorBetting {
 
     mapping(uint256 => BattleInfo) public battles;
     mapping(uint256 => mapping(uint256 => mapping(address => Bet))) public bets;
+    mapping(uint256 => mapping(address => BetCommit)) public betCommits;
     mapping(uint256 => mapping(uint256 => uint256)) public totalWageredPerAgent;
     mapping(uint256 => uint256) public totalPool;
     mapping(uint256 => address[]) public battleAgents;
@@ -33,6 +40,11 @@ contract SpectatorBetting {
         address indexed bettor,
         uint256 agentIndex,
         uint256 amount
+    );
+    event BetCommitted(
+        uint256 indexed battleId,
+        address indexed bettor,
+        bytes32 commitment
     );
     event BetClaimed(
         uint256 indexed battleId,
@@ -102,10 +114,49 @@ contract SpectatorBetting {
         whenNotPaused
         onlyEOA
     {
-        require(msg.value > 0, "Bet must be positive");
+        revert("Use commit-reveal");
+    }
+
+    /// @notice Commits to a bet before revealing it.
+    function commitBet(uint256 battleId, bytes32 commitment) external whenNotPaused onlyEOA {
+        require(commitment != bytes32(0), "Invalid commitment");
+        require(battles[battleId].startTime > 0, "Battle not registered");
+        require(block.timestamp < battles[battleId].startTime, "Battle started");
+
+        BetCommit storage existing = betCommits[battleId][msg.sender];
+        require(existing.commitment == bytes32(0), "Commit exists");
+
+        betCommits[battleId][msg.sender] = BetCommit({
+            commitment: commitment,
+            timestamp: block.timestamp
+        });
+
+        emit BetCommitted(battleId, msg.sender, commitment);
+    }
+
+    /// @notice Reveals a committed bet and funds it.
+    function revealBet(
+        uint256 battleId,
+        uint256 agentIndex,
+        uint256 amount,
+        bytes32 salt
+    ) external payable whenNotPaused onlyEOA {
+        require(amount > 0, "Bet must be positive");
+        require(msg.value == amount, "Invalid amount");
         require(battles[battleId].startTime > 0, "Battle not registered");
         require(block.timestamp < battles[battleId].startTime, "Battle started");
         require(agentIndex < battleAgents[battleId].length, "Invalid agent index");
+
+        BetCommit storage commit = betCommits[battleId][msg.sender];
+        require(commit.commitment != bytes32(0), "No commit");
+        require(block.timestamp >= commit.timestamp + MIN_COMMIT_AGE, "Commit too recent");
+
+        bytes32 expected = keccak256(
+            abi.encodePacked(battleId, agentIndex, amount, salt, msg.sender)
+        );
+        require(commit.commitment == expected, "Invalid reveal");
+
+        delete betCommits[battleId][msg.sender];
 
         Bet storage bet = bets[battleId][agentIndex][msg.sender];
         bet.amount += msg.value;
