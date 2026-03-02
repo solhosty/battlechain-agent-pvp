@@ -361,6 +361,23 @@ contract SpectatorBettingTest is Test {
         freshBetting.registerBattle(1, address(freshBattle), agents, START_TIME);
     }
 
+    function testRegisterBattleMismatchedAgentsReverts() public {
+        SpectatorBetting freshBetting = new SpectatorBetting(arena);
+        address[] memory canonicalAgents = new address[](2);
+        canonicalAgents[0] = address(10);
+        canonicalAgents[1] = address(11);
+
+        MockBattle freshBattle = new MockBattle(canonicalAgents);
+
+        address[] memory mismatchedAgents = new address[](2);
+        mismatchedAgents[0] = address(11);
+        mismatchedAgents[1] = address(10);
+
+        vm.prank(arena);
+        vm.expectRevert("Agents mismatch");
+        freshBetting.registerBattle(1, address(freshBattle), mismatchedAgents, START_TIME);
+    }
+
     function testPlaceBetFromContractReverts() public {
         BettingCaller caller = new BettingCaller();
         uint256 delay = betting.MIN_COMMIT_DELAY();
