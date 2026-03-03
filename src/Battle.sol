@@ -25,6 +25,7 @@ contract Battle is IBattle {
     address public winner;
     uint256 public winningAmount;
     uint256 public prizePool;
+    uint256 public fundedPrizePool;
     mapping(address => bool) public hasClaimed;
     mapping(address => address) public agentOwner;
     mapping(address => bool) public agentRegistered;
@@ -76,6 +77,7 @@ contract Battle is IBattle {
     /// @notice Funds the battle prize pool from the arena.
     function fundPrizePool() external payable onlyArena whenState(IBattle.BattleState.PENDING) {
         require(msg.value > 0, "No prize pool");
+        fundedPrizePool += msg.value;
         emit PrizePoolFunded(msg.sender, msg.value);
     }
 
@@ -117,7 +119,7 @@ contract Battle is IBattle {
         bool tie;
         
         for (uint256 i = 0; i < agents.length; i++) {
-            uint256 beforeBalance = address(challenge).balance;
+            uint256 beforeExtracted = BaseChallenge(challenge).getValueExtracted(agents[i]);
 
             (bool success, ) = agents[i].call{gas: AGENT_GAS_LIMIT}(
                 abi.encodeWithSelector(IAgent.attack.selector, address(challenge))
@@ -127,9 +129,9 @@ contract Battle is IBattle {
                 continue;
             }
 
-            uint256 afterBalance = address(challenge).balance;
-            uint256 extracted = beforeBalance > afterBalance
-                ? beforeBalance - afterBalance
+            uint256 afterExtracted = BaseChallenge(challenge).getValueExtracted(agents[i]);
+            uint256 extracted = afterExtracted > beforeExtracted
+                ? afterExtracted - beforeExtracted
                 : 0;
             extractions[i] = extracted;
 
@@ -149,7 +151,7 @@ contract Battle is IBattle {
         winner = winningAgent;
         winningAmount = highestExtraction;
         state = IBattle.BattleState.RESOLVED;
-        prizePool = address(this).balance;
+        prizePool = fundedPrizePool;
         
         emit BattleResolved(winner, winningAmount, extractions);
 
@@ -267,6 +269,4 @@ contract Battle is IBattle {
         emit PrizeClaimed(winner, winnerShare);
     }
 
-    /// @notice Accepts direct prize pool funding.
-    receive() external payable {}
 }

@@ -3,21 +3,23 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 import "../src/Battle.sol";
+import "../src/challenges/BaseChallenge.sol";
 import "../src/interfaces/IAgent.sol";
 import "../src/interfaces/IBattle.sol";
 import "./mocks/MockAgent.sol";
 
-contract DrainableChallenge {
+contract AccountingChallenge is BaseChallenge {
     event Drained(address indexed recipient, uint256 amount);
+
+    constructor(uint8 _difficulty) BaseChallenge(_difficulty) {}
 
     function drain(address recipient, uint256 amount) external {
         require(address(this).balance >= amount, "Insufficient balance");
+        recordExtraction(msg.sender, amount);
         (bool success, ) = payable(recipient).call{value: amount}("");
         require(success, "Drain failed");
         emit Drained(recipient, amount);
     }
-
-    receive() external payable {}
 }
 
 contract DrainAgent is IAgent {
@@ -45,7 +47,7 @@ contract DrainAgent is IAgent {
         require(shouldSucceed, "Attack failed");
 
         if (extractionAmount > 0) {
-            DrainableChallenge(payable(target)).drain(
+            AccountingChallenge(payable(target)).drain(
                 address(this),
                 extractionAmount
             );
@@ -97,7 +99,7 @@ contract StateCheckingAgent is IAgent {
 
 contract BattleTest is Test {
     Battle public battle;
-    DrainableChallenge public challenge;
+    AccountingChallenge public challenge;
     
     address public arena = address(1);
     address public player1 = address(2);
@@ -108,7 +110,7 @@ contract BattleTest is Test {
     uint256 public constant DEADLINE = 1 days;
 
     function setUp() public {
-        challenge = new DrainableChallenge();
+        challenge = new AccountingChallenge(1);
         
         vm.prank(arena);
         battle = new Battle(
@@ -120,7 +122,9 @@ contract BattleTest is Test {
         );
         
         // Fund challenge
-        vm.deal(address(challenge), 10 ether);
+        vm.deal(arena, 10 ether);
+        vm.prank(arena);
+        challenge.deposit{value: 10 ether}();
     }
 
     function testRegisterAgent() public {
@@ -424,6 +428,15 @@ contract BattleTest is Test {
         vm.prank(player1);
         vm.expectRevert("No winner");
         battle.claimPrize();
+    }
+
+    function testDirectEthTransferRejected() public {
+        vm.deal(player1, 1 ether);
+        vm.prank(player1);
+        (bool success, ) = address(battle).call{value: 1 ether}("");
+        assertFalse(success);
+        assertEq(address(battle).balance, 0);
+        assertEq(battle.fundedPrizePool(), 0);
     }
 
     function testResolveBattleBalanceIncreaseClamp() public {
