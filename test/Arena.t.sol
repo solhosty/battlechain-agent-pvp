@@ -60,6 +60,24 @@ contract ArenaTest is Test {
         assertEq(arena.battles(0).balance, ENTRY_FEE);
     }
 
+    function testCreateBattleZeroPrizePool() public {
+        vm.prank(player1);
+        uint256 battleId = arena.createBattle(
+            IChallengeFactory.ChallengeType.REENTRANCY_VAULT,
+            0,
+            5,
+            BATTLE_DURATION
+        );
+
+        assertEq(battleId, 0);
+        address battleAddress = arena.battles(0);
+        assertTrue(battleAddress != address(0));
+        assertEq(battleAddress.balance, 0);
+
+        Battle battle = Battle(payable(battleAddress));
+        assertEq(battle.fundedPrizePool(), 0);
+    }
+
     function testCreateBattleInsufficientFee() public {
         vm.deal(player1, 0.5 ether);
         vm.prank(player1);
