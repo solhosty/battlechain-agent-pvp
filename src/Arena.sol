@@ -87,7 +87,9 @@ contract Arena {
             msg.sender
         );
 
-        newBattle.fundPrizePool{value: msg.value}();
+        if (msg.value > 0) {
+            newBattle.fundPrizePool{value: msg.value}();
+        }
         
         battles[battleId] = address(newBattle);
         creatorBattles[msg.sender].push(battleId);
