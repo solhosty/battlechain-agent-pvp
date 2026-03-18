@@ -18,10 +18,8 @@ contract AgentFactoryTest is Test {
     }
 
     function testCreateAgentStoresByOwner() public {
-        bytes memory bytecode = abi.encodePacked(
-            type(MockAgent).creationCode,
-            abi.encode("Agent1", owner, true, 0)
-        );
+        bytes memory bytecode =
+            abi.encodePacked(type(MockAgent).creationCode, abi.encode("Agent1", owner, true, 0));
 
         vm.prank(creatorA);
         address agent = agentFactory.createAgent("Agent1", bytecode);
@@ -41,10 +39,8 @@ contract AgentFactoryTest is Test {
     }
 
     function testCreateAgentAnyCallerAllowed() public {
-        bytes memory bytecode = abi.encodePacked(
-            type(MockAgent).creationCode,
-            abi.encode("Agent1", owner, true, 0)
-        );
+        bytes memory bytecode =
+            abi.encodePacked(type(MockAgent).creationCode, abi.encode("Agent1", owner, true, 0));
 
         vm.prank(creatorB);
         address agent = agentFactory.createAgent("Agent1", bytecode);
@@ -55,17 +51,11 @@ contract AgentFactoryTest is Test {
     }
 
     function testCreateAgentDeterministicAddress() public {
-        bytes memory bytecode = abi.encodePacked(
-            type(MockAgent).creationCode,
-            abi.encode("Agent1", owner, true, 0)
-        );
+        bytes memory bytecode =
+            abi.encodePacked(type(MockAgent).creationCode, abi.encode("Agent1", owner, true, 0));
 
         bytes32 salt = keccak256(abi.encode(creatorA, "Agent1", uint256(1)));
-        address expected = _computeCreate2Address(
-            salt,
-            keccak256(bytecode),
-            address(agentFactory)
-        );
+        address expected = _computeCreate2Address(salt, keccak256(bytecode), address(agentFactory));
 
         vm.prank(creatorA);
         address agent = agentFactory.createAgent("Agent1", bytecode);
@@ -80,11 +70,7 @@ contract AgentFactoryTest is Test {
     ) internal pure returns (address) {
         return address(
             uint160(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(bytes1(0xff), deployer, salt, bytecodeHash)
-                    )
-                )
+                uint256(keccak256(abi.encodePacked(bytes1(0xff), deployer, salt, bytecodeHash)))
             )
         );
     }

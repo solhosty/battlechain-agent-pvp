@@ -1,20 +1,17 @@
-'use client'
+"use client"
 
-import React, { useState } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ConnectKitProvider } from 'connectkit'
-import { WagmiProvider } from 'wagmi'
-import { Toaster } from '@/components/ui/toaster'
-import { wagmiConfig } from '@/utils/wagmiConfig'
+import React, { useState } from "react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { ConnectKitProvider } from "connectkit"
+import { WagmiProvider } from "wagmi"
+import { Toaster } from "@/components/ui/toaster"
+import { wagmiConfig } from "@/utils/wagmiConfig"
 
 type ErrorBoundaryState = {
   hasError: boolean
 }
 
-class AppErrorBoundary extends React.Component<
-  React.PropsWithChildren,
-  ErrorBoundaryState
-> {
+class AppErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false }
 
   static getDerivedStateFromError() {
@@ -22,7 +19,7 @@ class AppErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error) {
-    console.error('App error boundary:', error)
+    console.error("App error boundary:", error)
   }
 
   render() {

@@ -1,4 +1,4 @@
-import UserDashboard from '@/components/UserDashboard'
+import UserDashboard from "@/components/UserDashboard"
 
 const DashboardPage = () => {
   return <UserDashboard />

@@ -12,7 +12,12 @@ contract MockAgent is IAgent {
     uint256 public increaseBalanceAmount;
     address public orchestrator;
 
-    constructor(string memory _name, address _owner, bool _shouldSucceed, uint256 _extractionAmount) {
+    constructor(
+        string memory _name,
+        address _owner,
+        bool _shouldSucceed,
+        uint256 _extractionAmount
+    ) {
         name = _name;
         agentOwner = _owner;
         shouldSucceed = _shouldSucceed;
@@ -25,18 +30,20 @@ contract MockAgent is IAgent {
         return agentOwner;
     }
 
-    function attack(address target) external override {
+    function attack(
+        address target
+    ) external override {
         require(msg.sender == orchestrator, "Only orchestrator");
         require(shouldSucceed, "Attack failed");
 
         if (increaseBalanceAmount > 0) {
-            (bool success, ) = payable(target).call{value: increaseBalanceAmount}("");
+            (bool success,) = payable(target).call{value: increaseBalanceAmount}("");
             require(success, "Increase failed");
         }
-        
+
         // Try to extract funds from target
         if (extractionAmount > 0 && target.balance >= extractionAmount) {
-            (bool success, ) = payable(address(this)).call{value: extractionAmount}("");
+            (bool success,) = payable(address(this)).call{value: extractionAmount}("");
             require(success, "Extraction failed");
         }
     }
@@ -45,19 +52,27 @@ contract MockAgent is IAgent {
         return name;
     }
 
-    function setOwner(address newOwner) external {
+    function setOwner(
+        address newOwner
+    ) external {
         agentOwner = newOwner;
     }
 
-    function setOwnerRevert(bool shouldRevert) external {
+    function setOwnerRevert(
+        bool shouldRevert
+    ) external {
         shouldRevertOwner = shouldRevert;
     }
 
-    function setIncreaseBalanceAmount(uint256 amount) external {
+    function setIncreaseBalanceAmount(
+        uint256 amount
+    ) external {
         increaseBalanceAmount = amount;
     }
 
-    function setOrchestrator(address newOrchestrator) external {
+    function setOrchestrator(
+        address newOrchestrator
+    ) external {
         orchestrator = newOrchestrator;
     }
 
@@ -68,12 +83,16 @@ contract GasBurningAgent is IAgent {
     address public orchestrator;
     address private agentOwner;
 
-    constructor(address _owner) {
+    constructor(
+        address _owner
+    ) {
         agentOwner = _owner;
         orchestrator = msg.sender;
     }
 
-    function attack(address) external override {
+    function attack(
+        address
+    ) external override {
         require(msg.sender == orchestrator, "Only orchestrator");
         while (gasleft() > 0) {}
     }
@@ -86,7 +105,9 @@ contract GasBurningAgent is IAgent {
         return agentOwner;
     }
 
-    function setOrchestrator(address newOrchestrator) external {
+    function setOrchestrator(
+        address newOrchestrator
+    ) external {
         orchestrator = newOrchestrator;
     }
 }

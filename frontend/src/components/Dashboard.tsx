@@ -1,21 +1,21 @@
-'use client'
+"use client"
 
-import React, { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { formatEther } from 'viem'
-import type { Address } from 'viem'
-import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
-import { useBattleChain } from '@/hooks/useBattleChain'
+import React, { useCallback, useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { formatEther } from "viem"
+import type { Address } from "viem"
+import { useAccount, useChainId, usePublicClient, useWalletClient } from "wagmi"
+import { useBattleChain } from "@/hooks/useBattleChain"
 import {
   createBattle,
   claimPrize,
   getAgentsByOwner,
   getGasOverrides,
   registerAgent,
-} from '@/utils/battlechain'
-import { ChallengeType } from '@/types/contracts'
-import { toast } from '@/components/ui/toast'
-import { formatWalletError } from '@/utils/walletErrors'
+} from "@/utils/battlechain"
+import { ChallengeType } from "@/types/contracts"
+import { toast } from "@/components/ui/toast"
+import { formatWalletError } from "@/utils/walletErrors"
 import {
   Dialog,
   DialogContent,
@@ -23,16 +23,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from "@/components/ui/dialog"
 
-type CreatePhase =
-  | 'idle'
-  | 'awaiting_wallet'
-  | 'submitted'
-  | 'confirming'
-  | 'timeout'
-  | 'error'
-  | 'success'
+type CreatePhase = "idle" | "awaiting_wallet" | "submitted" | "confirming" | "timeout" | "error" | "success"
 
 const DashboardContent: React.FC = () => {
   const {
@@ -57,22 +50,22 @@ const DashboardContent: React.FC = () => {
   const rpcUrl = process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL
   const router = useRouter()
   const [savedAgents, setSavedAgents] = useState<Address[]>([])
-  const [selectedAgent, setSelectedAgent] = useState<Address | ''>('')
+  const [selectedAgent, setSelectedAgent] = useState<Address | "">("")
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [createPhase, setCreatePhase] = useState<CreatePhase>('idle')
+  const [createPhase, setCreatePhase] = useState<CreatePhase>("idle")
   const [createForm, setCreateForm] = useState({
     challengeType: ChallengeType.REENTRANCY_VAULT,
-    entryFee: '0.05',
-    maxAgents: '4',
-    durationHours: '24',
+    entryFee: "0.05",
+    maxAgents: "4",
+    durationHours: "24",
   })
   const [claimingBattle, setClaimingBattle] = useState<bigint | null>(null)
 
   const waitForReceiptWithTimeout = async (hash: `0x${string}`) => {
     if (!publicClient) {
       throw new Error(
-        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+        "RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.",
       )
     }
 
@@ -84,8 +77,8 @@ const DashboardContent: React.FC = () => {
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      if (message.toLowerCase().includes('timeout')) {
-        throw new Error('RPC timeout — try again')
+      if (message.toLowerCase().includes("timeout")) {
+        throw new Error("RPC timeout — try again")
       }
       throw error
     }
@@ -100,12 +93,13 @@ const DashboardContent: React.FC = () => {
     error instanceof Error ? error.message : String(error)
 
   const isReplacementUnderpriced = (message: string) =>
-    message.includes('insufficient gas price to replace existing transaction') ||
-    message.includes('replacement transaction underpriced')
+    message.includes(
+      "insufficient gas price to replace existing transaction",
+    ) || message.includes("replacement transaction underpriced")
 
-  const isNonceTooLow = (message: string) => message.includes('nonce too low')
+  const isNonceTooLow = (message: string) => message.includes("nonce too low")
 
-  const isAlreadyKnown = (message: string) => message.includes('already known')
+  const isAlreadyKnown = (message: string) => message.includes("already known")
 
   const shouldRetryTx = (message: string) =>
     isReplacementUnderpriced(message) ||
@@ -127,22 +121,26 @@ const DashboardContent: React.FC = () => {
   ) => {
     if (!publicClient) {
       throw new Error(
-        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+        "RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.",
       )
     }
 
     if (!walletClient) {
-      throw new Error('Wallet client unavailable. Reconnect wallet and try again.')
+      throw new Error(
+        "Wallet client unavailable. Reconnect wallet and try again.",
+      )
     }
 
     const sender = account ?? walletClient.account?.address
     if (!sender) {
-      throw new Error('Wallet account unavailable. Reconnect wallet and try again.')
+      throw new Error(
+        "Wallet account unavailable. Reconnect wallet and try again.",
+      )
     }
 
     let nonce = await publicClient.getTransactionCount({
       address: sender,
-      blockTag: 'pending',
+      blockTag: "pending",
     })
 
     for (let attempt = 0; attempt < gasBufferSteps.length; attempt += 1) {
@@ -170,7 +168,7 @@ const DashboardContent: React.FC = () => {
         if (shouldRefreshNonce(message)) {
           nonce = await publicClient.getTransactionCount({
             address: sender,
-            blockTag: 'pending',
+            blockTag: "pending",
           })
         }
 
@@ -178,7 +176,7 @@ const DashboardContent: React.FC = () => {
       }
     }
 
-    throw new Error('Failed to submit transaction after retries.')
+    throw new Error("Failed to submit transaction after retries.")
   }
 
   useEffect(() => {
@@ -187,7 +185,7 @@ const DashboardContent: React.FC = () => {
 
   useEffect(() => {
     if (selectedAgent && !savedAgents.includes(selectedAgent as Address)) {
-      setSelectedAgent('')
+      setSelectedAgent("")
     }
   }, [savedAgents, selectedAgent])
 
@@ -200,7 +198,7 @@ const DashboardContent: React.FC = () => {
       const agents = await getAgentsByOwner(publicClient, account)
       setSavedAgents(agents)
     } catch (error) {
-      console.error('Failed to refresh agents:', error)
+      console.error("Failed to refresh agents:", error)
     }
   }, [account, publicClient])
 
@@ -218,20 +216,20 @@ const DashboardContent: React.FC = () => {
       refreshAgents()
     }
 
-    window.addEventListener('focus', handleFocus)
+    window.addEventListener("focus", handleFocus)
     return () => {
-      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener("focus", handleFocus)
     }
   }, [refreshAgents])
 
   const handleAssignAgent = async (battleId: bigint) => {
     if (!walletClient) {
-      toast.error('Connect your wallet to assign an agent')
+      toast.error("Connect your wallet to assign an agent")
       return
     }
 
     if (!selectedAgent) {
-      toast.error('Select a saved agent to assign')
+      toast.error("Select a saved agent to assign")
       return
     }
 
@@ -239,7 +237,7 @@ const DashboardContent: React.FC = () => {
       const actualChainId =
         chainId ?? walletClient.chain?.id ?? publicClient?.chain?.id
       if (!actualChainId) {
-        toast.error('Unable to detect wallet chain. Reconnect your wallet.')
+        toast.error("Unable to detect wallet chain. Reconnect your wallet.")
         return
       }
       if (actualChainId !== expectedChainId) {
@@ -254,52 +252,54 @@ const DashboardContent: React.FC = () => {
         selectedAgent as Address,
         gasOverrides,
       )
-      toast.success('Agent registered for battle')
+      toast.success("Agent registered for battle")
       fetchBattles()
     } catch (error) {
       const message = formatWalletError(error)
-      console.error('Failed to assign agent:', message)
+      console.error("Failed to assign agent:", message)
       toast.error(message)
     }
   }
 
   const handleCreateBattle = async () => {
     if (!hasExpectedChainId) {
-      toast.error('Missing NEXT_PUBLIC_CHAIN_ID in frontend env config')
-      setCreatePhase('error')
+      toast.error("Missing NEXT_PUBLIC_CHAIN_ID in frontend env config")
+      setCreatePhase("error")
       return
     }
 
     if (!rpcUrl) {
-      toast.error('Missing NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config')
-      setCreatePhase('error')
+      toast.error(
+        "Missing NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config",
+      )
+      setCreatePhase("error")
       return
     }
 
     if (!publicClient) {
       toast.error(
-        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+        "RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.",
       )
-      setCreatePhase('error')
+      setCreatePhase("error")
       return
     }
 
     if (!walletClient) {
-      toast.error('Connect your wallet to create a battle')
-      setCreatePhase('error')
+      toast.error("Connect your wallet to create a battle")
+      setCreatePhase("error")
       return
     }
 
     const actualChainId =
       chainId ?? walletClient.chain?.id ?? publicClient.chain?.id
     if (!actualChainId) {
-      toast.error('Unable to detect wallet chain. Reconnect your wallet.')
-      setCreatePhase('error')
+      toast.error("Unable to detect wallet chain. Reconnect your wallet.")
+      setCreatePhase("error")
       return
     }
     if (actualChainId !== expectedChainId) {
       toast.error(`Wrong network. Switch to chain ${expectedChainId}.`)
-      setCreatePhase('error')
+      setCreatePhase("error")
       return
     }
 
@@ -308,23 +308,23 @@ const DashboardContent: React.FC = () => {
     const durationHours = Number.parseFloat(createForm.durationHours)
 
     if (!Number.isFinite(entryFee) || entryFee <= 0) {
-      toast.error('Enter a valid entry fee')
+      toast.error("Enter a valid entry fee")
       return
     }
 
     if (!Number.isFinite(maxAgents) || maxAgents < 2) {
-      toast.error('Enter a valid max agents value (min 2)')
+      toast.error("Enter a valid max agents value (min 2)")
       return
     }
 
     if (!Number.isFinite(durationHours) || durationHours <= 0) {
-      toast.error('Enter a valid duration in hours')
+      toast.error("Enter a valid duration in hours")
       return
     }
 
     const durationSeconds = Math.round(durationHours * 3600)
     setCreating(true)
-    setCreatePhase('awaiting_wallet')
+    setCreatePhase("awaiting_wallet")
 
     try {
       const hash = await sendCreateBattleWithRetry(
@@ -333,19 +333,19 @@ const DashboardContent: React.FC = () => {
         maxAgents,
         durationSeconds,
       )
-      setCreatePhase('submitted')
-      toast('Battle submitted. Waiting for confirmation...')
-      setCreatePhase('confirming')
+      setCreatePhase("submitted")
+      toast("Battle submitted. Waiting for confirmation...")
+      setCreatePhase("confirming")
       await waitForReceiptWithTimeout(hash)
-      setCreatePhase('success')
-      toast.success('Battle created')
+      setCreatePhase("success")
+      toast.success("Battle created")
       setCreateOpen(false)
       fetchBattles()
     } catch (error) {
       const message = formatWalletError(error)
-      console.error('Failed to create battle:', message)
+      console.error("Failed to create battle:", message)
       setCreatePhase(
-        message.toLowerCase().includes('timeout') ? 'timeout' : 'error',
+        message.toLowerCase().includes("timeout") ? "timeout" : "error",
       )
       toast.error(message)
     } finally {
@@ -355,18 +355,18 @@ const DashboardContent: React.FC = () => {
 
   const handleClaimPrize = async (battleId: bigint) => {
     if (!walletClient) {
-      toast.error('Connect your wallet to claim')
+      toast.error("Connect your wallet to claim")
       return
     }
 
     setClaimingBattle(battleId)
     try {
       await claimPrize(walletClient, battleId)
-      toast.success('Prize claim submitted')
+      toast.success("Prize claim submitted")
       fetchBattles()
     } catch (error) {
-      console.error('Failed to claim prize:', error)
-      toast.error('Failed to claim prize')
+      console.error("Failed to claim prize:", error)
+      toast.error("Failed to claim prize")
     } finally {
       setClaimingBattle(null)
     }
@@ -396,7 +396,7 @@ const DashboardContent: React.FC = () => {
                 <select
                   value={selectedAgent}
                   onChange={(event) =>
-                    setSelectedAgent(event.target.value as Address | '')
+                    setSelectedAgent(event.target.value as Address | "")
                   }
                   className="w-full max-w-lg rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
                 >
@@ -428,7 +428,7 @@ const DashboardContent: React.FC = () => {
         <div className="bg-gray-800 p-6 rounded-lg">
           <h3 className="text-xl font-semibold mb-2">Active Battles</h3>
           <p className="text-3xl font-bold text-green-400">
-            {battles.filter(b => b.state === 'Active').length}
+            {battles.filter((b) => b.state === "Active").length}
           </p>
         </div>
         <div className="bg-gray-800 p-6 rounded-lg">
@@ -447,15 +447,16 @@ const DashboardContent: React.FC = () => {
         <div className="p-6 border-b border-gray-700">
           <h2 className="text-2xl font-bold">Live Battles</h2>
         </div>
-        
+
         {loading ? (
-          <div className="p-8 text-center text-gray-400">Loading battles...</div>
+          <div className="p-8 text-center text-gray-400">
+            Loading battles...
+          </div>
         ) : battles.length === 0 ? (
           <div className="p-8 text-center text-gray-400">No battles found</div>
         ) : (
           <div className="divide-y divide-gray-700">
             {battles.map((battle) => (
-              
               <div key={battle.id} className="p-6 hover:bg-gray-700 transition">
                 <div className="flex justify-between items-center">
                   <div>
@@ -467,11 +468,15 @@ const DashboardContent: React.FC = () => {
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                      battle.state === 'Active' ? 'bg-green-600' :
-                      battle.state === 'Resolved' ? 'bg-blue-600' :
-                      'bg-gray-600'
-                    }`}>
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                        battle.state === "Active"
+                          ? "bg-green-600"
+                          : battle.state === "Resolved"
+                            ? "bg-blue-600"
+                            : "bg-gray-600"
+                      }`}
+                    >
                       {battle.state}
                     </span>
                     <p className="text-gray-400 text-sm mt-1">
@@ -481,10 +486,8 @@ const DashboardContent: React.FC = () => {
                 </div>
                 {claimablePrizesByBattle[battle.id.toString()] ? (
                   <div className="mt-4 rounded-lg bg-gray-900/60 p-3 text-sm text-emerald-200">
-                    Claimable prize:{' '}
-                    {formatEther(
-                      claimablePrizesByBattle[battle.id.toString()],
-                    )}{' '}
+                    Claimable prize:{" "}
+                    {formatEther(claimablePrizesByBattle[battle.id.toString()])}{" "}
                     ETH
                   </div>
                 ) : null}
@@ -495,21 +498,21 @@ const DashboardContent: React.FC = () => {
                   >
                     View Details
                   </button>
-                  {battle.state === 'Pending' && (
+                  {battle.state === "Pending" && (
                     <button
                       disabled={!isConnected}
                       onClick={() => handleAssignAgent(battle.id)}
                       className={`px-4 py-2 rounded text-sm ${
                         isConnected && selectedAgent
-                          ? 'bg-green-600 hover:bg-green-700'
-                          : 'bg-gray-600 cursor-not-allowed'
+                          ? "bg-green-600 hover:bg-green-700"
+                          : "bg-gray-600 cursor-not-allowed"
                       }`}
                     >
                       {!isConnected
-                        ? 'Connect to Assign'
+                        ? "Connect to Assign"
                         : selectedAgent
-                        ? 'Assign to Battle'
-                        : 'Select Agent'}
+                          ? "Assign to Battle"
+                          : "Select Agent"}
                     </button>
                   )}
                   {claimablePrizesByBattle[battle.id.toString()] ? (
@@ -518,13 +521,13 @@ const DashboardContent: React.FC = () => {
                       onClick={() => handleClaimPrize(battle.id)}
                       className={`px-4 py-2 rounded text-sm ${
                         isConnected
-                          ? 'bg-emerald-600 hover:bg-emerald-700'
-                          : 'bg-gray-600 cursor-not-allowed'
+                          ? "bg-emerald-600 hover:bg-emerald-700"
+                          : "bg-gray-600 cursor-not-allowed"
                       }`}
                     >
                       {claimingBattle === battle.id
-                        ? 'Claiming...'
-                        : 'Claim Prize'}
+                        ? "Claiming..."
+                        : "Claim Prize"}
                     </button>
                   ) : null}
                 </div>
@@ -633,13 +636,13 @@ const DashboardContent: React.FC = () => {
               disabled={creating}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-600"
             >
-              {createPhase === 'awaiting_wallet'
-                ? 'Awaiting wallet confirmation...'
-                : createPhase === 'confirming'
-                ? 'Confirming on-chain...'
-                : creating
-                ? 'Creating...'
-                : 'Create battle'}
+              {createPhase === "awaiting_wallet"
+                ? "Awaiting wallet confirmation..."
+                : createPhase === "confirming"
+                  ? "Confirming on-chain..."
+                  : creating
+                    ? "Creating..."
+                    : "Create battle"}
             </button>
           </DialogFooter>
         </DialogContent>

@@ -1,6 +1,6 @@
 declare global {
   interface Window {
-    ethereum?: unknown;
+    ethereum?: unknown
   }
 }
 

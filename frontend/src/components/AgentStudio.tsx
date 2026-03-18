@@ -1,26 +1,33 @@
-'use client'
+"use client" /* Left Panel - Prompt Input */ /* Right Panel - Code Preview */ /* <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-3 text-gray-300">
+              Set <code className="font-mono">NEXT_PUBLIC_ARENA_ADDRESS</code> and{' '}
+              <code className="font-mono">NEXT_PUBLIC_BETTING_ADDRESS</code> in{' '}
+              <code className="font-mono">frontend/.env</code> before registering.
+            </div> */ /* Instructions */
 
-import React, { useState } from 'react'
-import type { Abi, Address } from 'viem'
-import { useAccount, useChainId } from 'wagmi'
-import { useAgentDeploy } from '@/hooks/useAgentDeploy'
-import { toast } from '@/components/ui/toast'
+import React, { useState } from "react"
+import type { Abi, Address } from "viem"
+import { useAccount, useChainId } from "wagmi"
+import { useAgentDeploy } from "@/hooks/useAgentDeploy"
+import { toast } from "@/components/ui/toast"
 
 const AgentStudio: React.FC = () => {
   const { isConnected } = useAccount()
   const chainId = useChainId()
   const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
-  const hasExpectedChainId = Number.isFinite(expectedChainId) && expectedChainId > 0
+  const hasExpectedChainId =
+    Number.isFinite(expectedChainId) && expectedChainId > 0
   const rpcUrl = process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL
   const walletConnectProjectId =
     process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
   const missingWalletConnectProjectId = !walletConnectProjectId
   const missingRpc = !rpcUrl
   const wrongNetwork =
-    hasExpectedChainId && typeof chainId === 'number' && chainId !== expectedChainId
+    hasExpectedChainId &&
+    typeof chainId === "number" &&
+    chainId !== expectedChainId
   const missingChainConfig = !hasExpectedChainId
-  const [prompt, setPrompt] = useState('')
-  const [battleId, setBattleId] = useState('')
+  const [prompt, setPrompt] = useState("")
+  const [battleId, setBattleId] = useState("")
   const {
     generating,
     deploying,
@@ -44,63 +51,63 @@ const AgentStudio: React.FC = () => {
   const [selectedAgent, setSelectedAgent] = useState<Address | null>(null)
   const agentForRegistration = selectedAgent ?? deployedAddress
   const deployPhaseMessage =
-    deployPhase === 'awaiting_wallet'
-      ? 'Awaiting wallet confirmation...'
-      : deployPhase === 'submitted'
-      ? 'Transaction submitted. Waiting for confirmation...'
-      : deployPhase === 'confirming'
-      ? 'Confirming on-chain...'
-      : deployPhase === 'timeout'
-      ? 'RPC timeout — try again.'
-      : deployPhase === 'success'
-      ? 'Deployment confirmed.'
-      : deployPhase === 'error'
-      ? 'Deployment failed. See error details below.'
-      : null
+    deployPhase === "awaiting_wallet"
+      ? "Awaiting wallet confirmation..."
+      : deployPhase === "submitted"
+        ? "Transaction submitted. Waiting for confirmation..."
+        : deployPhase === "confirming"
+          ? "Confirming on-chain..."
+          : deployPhase === "timeout"
+            ? "RPC timeout — try again."
+            : deployPhase === "success"
+              ? "Deployment confirmed."
+              : deployPhase === "error"
+                ? "Deployment failed. See error details below."
+                : null
   const registerPhaseMessage =
-    registerPhase === 'awaiting_wallet'
-      ? 'Awaiting wallet confirmation...'
-      : registerPhase === 'submitted'
-      ? 'Transaction submitted. Waiting for confirmation...'
-      : registerPhase === 'confirming'
-      ? 'Confirming on-chain...'
-      : registerPhase === 'timeout'
-      ? 'RPC timeout — try again.'
-      : registerPhase === 'success'
-      ? 'Registration confirmed.'
-      : registerPhase === 'error'
-      ? 'Registration failed. See error details below.'
-      : null
+    registerPhase === "awaiting_wallet"
+      ? "Awaiting wallet confirmation..."
+      : registerPhase === "submitted"
+        ? "Transaction submitted. Waiting for confirmation..."
+        : registerPhase === "confirming"
+          ? "Confirming on-chain..."
+          : registerPhase === "timeout"
+            ? "RPC timeout — try again."
+            : registerPhase === "success"
+              ? "Registration confirmed."
+              : registerPhase === "error"
+                ? "Registration failed. See error details below."
+                : null
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      toast.error('Enter a prompt to generate an agent')
+      toast.error("Enter a prompt to generate an agent")
       return
     }
     const code = await generateAgent(prompt)
     if (code) {
-      toast.success('Agent generated')
+      toast.success("Agent generated")
     }
   }
 
   const handleCompile = async () => {
     if (!generatedCode) {
-      toast.error('Generate an agent before compiling')
+      toast.error("Generate an agent before compiling")
       return
     }
     const result = await compileAgent(generatedCode)
     if (result) {
-      toast.success('Compilation succeeded')
+      toast.success("Compilation succeeded")
     }
   }
 
   const handleDeploy = async () => {
     if (!walletStatus.ready) {
-      toast.error(walletStatus.reason ?? 'Wallet not ready.')
+      toast.error(walletStatus.reason ?? "Wallet not ready.")
       return
     }
-    if (compilationStatus !== 'compiled' || !compiledArtifact) {
-      toast.error('Compile your agent before deploying')
+    if (compilationStatus !== "compiled" || !compiledArtifact) {
+      toast.error("Compile your agent before deploying")
       return
     }
     const address = await deployAgent(
@@ -114,16 +121,16 @@ const AgentStudio: React.FC = () => {
 
   const handleRegister = async () => {
     if (!walletStatus.ready) {
-      toast.error(walletStatus.reason ?? 'Wallet not ready.')
+      toast.error(walletStatus.reason ?? "Wallet not ready.")
       return
     }
     const agentAddress = selectedAgent ?? deployedAddress
     if (!agentAddress) {
-      toast.error('Deploy or select an agent before registering')
+      toast.error("Deploy or select an agent before registering")
       return
     }
     if (!battleId.trim()) {
-      toast.error('Enter a battle ID to register')
+      toast.error("Enter a battle ID to register")
       return
     }
 
@@ -132,7 +139,7 @@ const AgentStudio: React.FC = () => {
       parsedBattleId = BigInt(battleId.trim())
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Battle ID must be a number'
+        error instanceof Error ? error.message : "Battle ID must be a number"
       toast.error(message)
       return
     }
@@ -142,7 +149,7 @@ const AgentStudio: React.FC = () => {
       agentAddress as Address,
     )
     if (hash) {
-      toast.success('Agent registered in battle')
+      toast.success("Agent registered in battle")
     }
   }
 
@@ -150,11 +157,13 @@ const AgentStudio: React.FC = () => {
     <div className="py-10">
       <header className="mb-8">
         <h1 className="text-4xl font-bold mb-2">Agent Studio</h1>
-        <p className="text-gray-400">Generate and deploy AI-powered attacker agents</p>
+        <p className="text-gray-400">
+          Generate and deploy AI-powered attacker agents
+        </p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Panel - Prompt Input */}
+        {}
         <div className="bg-gray-800 p-6 rounded-lg">
           <h2 className="text-xl font-bold mb-4">AI Prompt</h2>
           <textarea
@@ -168,30 +177,41 @@ const AgentStudio: React.FC = () => {
             disabled={generating || !prompt.trim()}
             className="mt-4 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
           >
-            {generating ? 'Generating...' : 'Generate Agent'}
+            {generating ? "Generating..." : "Generate Agent"}
           </button>
         </div>
 
-        {/* Right Panel - Code Preview */}
+        {}
         <div className="bg-gray-800 p-6 rounded-lg">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">Generated Code</h2>
             <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${
-                compilationStatus === 'idle' ? 'bg-gray-500' :
-                compilationStatus === 'generated' ? 'bg-yellow-500' :
-                compilationStatus === 'compiling' ? 'bg-orange-500' :
-                compilationStatus === 'compiled' ? 'bg-green-500' :
-                compilationStatus === 'deployed' ? 'bg-blue-500' :
-                'bg-red-500'
-              }`} />
-              <span className="text-sm text-gray-400 capitalize">{compilationStatus}</span>
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  compilationStatus === "idle"
+                    ? "bg-gray-500"
+                    : compilationStatus === "generated"
+                      ? "bg-yellow-500"
+                      : compilationStatus === "compiling"
+                        ? "bg-orange-500"
+                        : compilationStatus === "compiled"
+                          ? "bg-green-500"
+                          : compilationStatus === "deployed"
+                            ? "bg-blue-500"
+                            : "bg-red-500"
+                }`}
+              />
+              <span className="text-sm text-gray-400 capitalize">
+                {compilationStatus}
+              </span>
               {compiledArtifact?.contractName && (
-                <span className="text-xs text-gray-500">{compiledArtifact.contractName}</span>
+                <span className="text-xs text-gray-500">
+                  {compiledArtifact.contractName}
+                </span>
               )}
             </div>
           </div>
-          
+
           <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm text-gray-300 h-64 overflow-auto">
             {generatedCode ? (
               <pre>{generatedCode}</pre>
@@ -205,22 +225,25 @@ const AgentStudio: React.FC = () => {
           <div className="mt-4 space-y-2 text-sm">
             {missingChainConfig && (
               <div className="rounded-lg border border-yellow-600 bg-yellow-900/40 p-3 text-yellow-200">
-                Missing <code className="font-mono">NEXT_PUBLIC_CHAIN_ID</code> in{' '}
-                <code className="font-mono">frontend/.env</code>.
+                Missing <code className="font-mono">NEXT_PUBLIC_CHAIN_ID</code>{" "}
+                in <code className="font-mono">frontend/.env</code>.
               </div>
             )}
             {missingRpc && (
               <div className="rounded-lg border border-yellow-600 bg-yellow-900/40 p-3 text-yellow-200">
-                Missing <code className="font-mono">NEXT_PUBLIC_BATTLECHAIN_RPC_URL</code>{' '}
+                Missing{" "}
+                <code className="font-mono">
+                  NEXT_PUBLIC_BATTLECHAIN_RPC_URL
+                </code>{" "}
                 in <code className="font-mono">frontend/.env</code>.
               </div>
             )}
             {missingWalletConnectProjectId && (
               <div className="rounded-lg border border-yellow-600 bg-yellow-900/40 p-3 text-yellow-200">
-                Missing{' '}
+                Missing{" "}
                 <code className="font-mono">
                   NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
-                </code>{' '}
+                </code>{" "}
                 in <code className="font-mono">frontend/.env</code>.
               </div>
             )}
@@ -229,25 +252,25 @@ const AgentStudio: React.FC = () => {
                 Switch to chain {expectedChainId} to deploy or register.
               </div>
             )}
-            {/* <div className="rounded-lg border border-gray-700 bg-gray-900/50 p-3 text-gray-300">
-              Set <code className="font-mono">NEXT_PUBLIC_ARENA_ADDRESS</code> and{' '}
-              <code className="font-mono">NEXT_PUBLIC_BETTING_ADDRESS</code> in{' '}
-              <code className="font-mono">frontend/.env</code> before registering.
-            </div> */}
+            {}
           </div>
 
           <div className="mt-4 flex gap-4">
             <button
               onClick={handleCompile}
-              disabled={!generatedCode || compilationStatus === 'compiling' || compilationStatus === 'compiled'}
+              disabled={
+                !generatedCode ||
+                compilationStatus === "compiling" ||
+                compilationStatus === "compiled"
+              }
               className="flex-1 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
             >
-              {compilationStatus === 'compiling' ? 'Compiling...' : 'Compile'}
+              {compilationStatus === "compiling" ? "Compiling..." : "Compile"}
             </button>
             <button
               onClick={handleDeploy}
               disabled={
-                compilationStatus !== 'compiled' ||
+                compilationStatus !== "compiled" ||
                 deploying ||
                 wrongNetwork ||
                 missingChainConfig ||
@@ -256,15 +279,15 @@ const AgentStudio: React.FC = () => {
               }
               className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
             >
-              {deployPhase === 'awaiting_wallet'
-                ? 'Awaiting wallet...'
-                : deployPhase === 'confirming'
-                ? 'Confirming on-chain...'
-                : deploying
-                ? 'Deploying...'
-                : isConnected
-                ? 'Deploy to BattleChain'
-                : 'Connect Wallet'}
+              {deployPhase === "awaiting_wallet"
+                ? "Awaiting wallet..."
+                : deployPhase === "confirming"
+                  ? "Confirming on-chain..."
+                  : deploying
+                    ? "Deploying..."
+                    : isConnected
+                      ? "Deploy to BattleChain"
+                      : "Connect Wallet"}
             </button>
           </div>
 
@@ -291,13 +314,13 @@ const AgentStudio: React.FC = () => {
                 }
                 className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
               >
-                {registerPhase === 'awaiting_wallet'
-                  ? 'Awaiting wallet...'
-                  : registerPhase === 'confirming'
-                  ? 'Confirming on-chain...'
-                  : registering
-                  ? 'Registering...'
-                  : 'Register Agent in Arena'}
+                {registerPhase === "awaiting_wallet"
+                  ? "Awaiting wallet..."
+                  : registerPhase === "confirming"
+                    ? "Confirming on-chain..."
+                    : registering
+                      ? "Registering..."
+                      : "Register Agent in Arena"}
               </button>
               {registerPhaseMessage && (
                 <p className="text-xs text-gray-400">{registerPhaseMessage}</p>
@@ -323,8 +346,8 @@ const AgentStudio: React.FC = () => {
                     key={agent}
                     className={`flex flex-col gap-2 rounded-lg border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between ${
                       selectedAgent === agent
-                        ? 'border-blue-500 bg-blue-900/30'
-                        : 'border-gray-700 bg-gray-800/60'
+                        ? "border-blue-500 bg-blue-900/30"
+                        : "border-gray-700 bg-gray-800/60"
                     }`}
                   >
                     <span className="font-mono text-xs text-gray-300">
@@ -336,8 +359,8 @@ const AgentStudio: React.FC = () => {
                         className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
                       >
                         {selectedAgent === agent
-                          ? 'Selected'
-                          : 'Use for Registration'}
+                          ? "Selected"
+                          : "Use for Registration"}
                       </button>
                       <button
                         onClick={() => removeSavedAgent(agent)}
@@ -352,26 +375,33 @@ const AgentStudio: React.FC = () => {
             </div>
           ) : (
             <div className="mt-4 rounded-lg border border-gray-700 bg-gray-900/50 p-4 text-sm text-gray-400">
-              No saved agents yet. Deploy an agent to persist it across sessions.
+              No saved agents yet. Deploy an agent to persist it across
+              sessions.
             </div>
           )}
 
           {deployedAddress && (
             <div className="mt-4 p-4 bg-green-900/50 border border-green-600 rounded-lg">
               <p className="text-green-400 font-semibold">Agent Deployed!</p>
-              <p className="text-sm text-gray-400 mt-1">Address: {deployedAddress}</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Address: {deployedAddress}
+              </p>
             </div>
           )}
           {selectedAgent && selectedAgent !== deployedAddress && (
             <div className="mt-4 p-4 bg-blue-900/40 border border-blue-700 rounded-lg">
               <p className="text-blue-300 font-semibold">Using saved agent</p>
-              <p className="text-sm text-gray-300 mt-1">Address: {selectedAgent}</p>
+              <p className="text-sm text-gray-300 mt-1">
+                Address: {selectedAgent}
+              </p>
             </div>
           )}
           {registrationHash && (
             <div className="mt-4 p-4 bg-blue-900/50 border border-blue-600 rounded-lg">
               <p className="text-blue-400 font-semibold">Agent Registered!</p>
-              <p className="text-sm text-gray-400 mt-1">Tx: {registrationHash}</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Tx: {registrationHash}
+              </p>
             </div>
           )}
           {error && (
@@ -383,13 +413,14 @@ const AgentStudio: React.FC = () => {
         </div>
       </div>
 
-      {/* Instructions */}
+      {}
       <div className="mt-8 bg-gray-800 p-6 rounded-lg">
         <h3 className="text-lg font-semibold mb-3">How it works</h3>
         <div className="mb-4 rounded-lg border border-gray-700 bg-gray-900/50 p-4 text-sm text-gray-300">
           Create battles from the Arena page, then paste a battle ID here to
           register your agent. After registration, your agent appears on the
-          Arena dashboard under the "Saved agents" selector for quick assignment.
+          Arena dashboard under the "Saved agents" selector for quick
+          assignment.
         </div>
         <ol className="list-decimal list-inside space-y-2 text-gray-400">
           <li>Enter a detailed prompt describing your attack strategy</li>

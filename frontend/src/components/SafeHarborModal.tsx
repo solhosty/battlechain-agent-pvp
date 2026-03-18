@@ -1,42 +1,51 @@
-'use client'
+"use client"
 
-import React, { useState } from 'react';
+import React, { useState } from "react"
 
 interface SafeHarborModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAccept: () => void;
+  isOpen: boolean
+  onClose: () => void
+  onAccept: () => void
 }
 
-const SafeHarborModal: React.FC<SafeHarborModalProps> = ({ isOpen, onClose, onAccept }) => {
-  const [accepted, setAccepted] = useState(false);
+const SafeHarborModal: React.FC<SafeHarborModalProps> = ({
+  isOpen,
+  onClose,
+  onAccept,
+}) => {
+  const [accepted, setAccepted] = useState(false)
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-700">
           <h2 className="text-2xl font-bold">Safe Harbor Agreement</h2>
-          <p className="text-gray-400 mt-2">Please review the terms before participating</p>
+          <p className="text-gray-400 mt-2">
+            Please review the terms before participating
+          </p>
         </div>
 
         <div className="p-6 space-y-6">
           <section>
             <h3 className="text-lg font-semibold mb-2">Scope of Testing</h3>
             <p className="text-gray-400 text-sm leading-relaxed">
-              By participating in BattleChain Arena, you agree to only test vulnerabilities 
-              within the designated challenge contracts. All challenges are deployed in a 
-              controlled environment specifically designed for security testing.
+              By participating in BattleChain Arena, you agree to only test
+              vulnerabilities within the designated challenge contracts. All
+              challenges are deployed in a controlled environment specifically
+              designed for security testing.
             </p>
           </section>
 
           <section>
-            <h3 className="text-lg font-semibold mb-2">Responsible Disclosure</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              Responsible Disclosure
+            </h3>
             <p className="text-gray-400 text-sm leading-relaxed">
-              Any vulnerabilities discovered during battles should be reported through the 
-              proper channels. Do not exploit vulnerabilities outside the scope of the 
-              battle arena or on production systems.
+              Any vulnerabilities discovered during battles should be reported
+              through the proper channels. Do not exploit vulnerabilities
+              outside the scope of the battle arena or on production systems.
             </p>
           </section>
 
@@ -46,12 +55,16 @@ const SafeHarborModal: React.FC<SafeHarborModalProps> = ({ isOpen, onClose, onAc
               <li>Maximum bounty per battle: 10 ETH</li>
               <li>Minimum payout threshold: 0.1 ETH</li>
               <li>Prizes distributed automatically via smart contract</li>
-              <li>Winners receive 70% of entry fees, 30% to spectators/creator</li>
+              <li>
+                Winners receive 70% of entry fees, 30% to spectators/creator
+              </li>
             </ul>
           </section>
 
           <section>
-            <h3 className="text-lg font-semibold mb-2">Prohibited Activities</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              Prohibited Activities
+            </h3>
             <ul className="text-gray-400 text-sm space-y-2 list-disc list-inside">
               <li>Attacking infrastructure outside battle contracts</li>
               <li>Front-running other participants</li>
@@ -69,8 +82,9 @@ const SafeHarborModal: React.FC<SafeHarborModalProps> = ({ isOpen, onClose, onAc
               className="mt-1 w-5 h-5 rounded border-gray-600 text-blue-600 focus:ring-blue-500"
             />
             <label htmlFor="accept-terms" className="text-sm text-gray-300">
-              I have read and agree to the Safe Harbor terms. I understand that participating 
-              in battles is for educational and competitive purposes only.
+              I have read and agree to the Safe Harbor terms. I understand that
+              participating in battles is for educational and competitive
+              purposes only.
             </label>
           </div>
         </div>
@@ -92,7 +106,7 @@ const SafeHarborModal: React.FC<SafeHarborModalProps> = ({ isOpen, onClose, onAc
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default SafeHarborModal;
+export default SafeHarborModal

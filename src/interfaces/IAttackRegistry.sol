@@ -8,7 +8,13 @@ interface IAttackRegistry {
         DEFENDED
     }
 
-    function requestUnderAttack(address contractAddress) external;
-    function getAttackState(address contractAddress) external view returns (AttackState);
-    function isUnderAttack(address contractAddress) external view returns (bool);
+    function requestUnderAttack(
+        address contractAddress
+    ) external;
+    function getAttackState(
+        address contractAddress
+    ) external view returns (AttackState);
+    function isUnderAttack(
+        address contractAddress
+    ) external view returns (bool);
 }

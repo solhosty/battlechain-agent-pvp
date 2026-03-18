@@ -1,23 +1,17 @@
-import { useEffect, useState } from 'react'
-import type { Abi, Address } from 'viem'
-import { encodeDeployData, parseEventLogs } from 'viem'
-import { useAccount, useChainId, usePublicClient, useWalletClient } from 'wagmi'
+import { useEffect, useState } from "react"
+import type { Abi, Address } from "viem"
+import { encodeDeployData, parseEventLogs } from "viem"
+import { useAccount, useChainId, usePublicClient, useWalletClient } from "wagmi"
 import {
   AGENT_CREATED_EVENT,
   createAgent,
   getAgentsByOwner,
   registerAgent,
-} from '@/utils/battlechain'
-import type { GasOverrides } from '@/utils/battlechain'
-import { formatWalletError } from '@/utils/walletErrors'
+} from "@/utils/battlechain"
+import type { GasOverrides } from "@/utils/battlechain"
+import { formatWalletError } from "@/utils/walletErrors"
 
-type CompilationStatus =
-  | 'idle'
-  | 'generated'
-  | 'compiling'
-  | 'compiled'
-  | 'deployed'
-  | 'error'
+type CompilationStatus = "idle" | "generated" | "compiling" | "compiled" | "deployed" | "error"
 
 interface CompilationResult {
   abi: Abi
@@ -25,14 +19,7 @@ interface CompilationResult {
   contractName?: string
 }
 
-type ActionPhase =
-  | 'idle'
-  | 'awaiting_wallet'
-  | 'submitted'
-  | 'confirming'
-  | 'timeout'
-  | 'error'
-  | 'success'
+type ActionPhase = "idle" | "awaiting_wallet" | "submitted" | "confirming" | "timeout" | "error" | "success"
 
 interface WalletStatus {
   ready: boolean
@@ -41,16 +28,16 @@ interface WalletStatus {
 
 const request = async <TResponse>(path: string, payload: unknown) => {
   const response = await fetch(`/api${path}`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
   })
 
   if (!response.ok) {
-    const contentType = response.headers.get('content-type') ?? ''
-    if (contentType.includes('application/json')) {
+    const contentType = response.headers.get("content-type") ?? ""
+    if (contentType.includes("application/json")) {
       const payload = await response.json().catch(() => null)
       const message = payload?.error || `Request failed (${response.status})`
       throw new Error(message)
@@ -66,7 +53,8 @@ export const useAgentDeploy = () => {
   const { isConnected, address: account } = useAccount()
   const chainId = useChainId()
   const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
-  const hasExpectedChainId = Number.isFinite(expectedChainId) && expectedChainId > 0
+  const hasExpectedChainId =
+    Number.isFinite(expectedChainId) && expectedChainId > 0
   const publicClient = usePublicClient({
     chainId: hasExpectedChainId ? expectedChainId : undefined,
   })
@@ -76,18 +64,17 @@ export const useAgentDeploy = () => {
   const rpcUrl = process.env.NEXT_PUBLIC_BATTLECHAIN_RPC_URL
   const [generating, setGenerating] = useState(false)
   const [deploying, setDeploying] = useState(false)
-  const [generatedCode, setGeneratedCode] = useState('')
+  const [generatedCode, setGeneratedCode] = useState("")
   const [compilationStatus, setCompilationStatus] =
-    useState<CompilationStatus>('idle')
+    useState<CompilationStatus>("idle")
   const [compiledArtifact, setCompiledArtifact] =
     useState<CompilationResult | null>(null)
   const [deployedAddress, setDeployedAddress] = useState<string | null>(null)
   const [registering, setRegistering] = useState(false)
-  const [deployPhase, setDeployPhase] = useState<ActionPhase>('idle')
-  const [registerPhase, setRegisterPhase] = useState<ActionPhase>('idle')
-  const [registrationHash, setRegistrationHash] = useState<
-    `0x${string}` | null
-  >(null)
+  const [deployPhase, setDeployPhase] = useState<ActionPhase>("idle")
+  const [registerPhase, setRegisterPhase] = useState<ActionPhase>("idle")
+  const [registrationHash, setRegistrationHash] =
+    useState<`0x${string}` | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [savedAgents, setSavedAgents] = useState<Address[]>([])
 
@@ -95,33 +82,33 @@ export const useAgentDeploy = () => {
     if (!hasExpectedChainId) {
       return {
         ready: false,
-        reason: 'Missing NEXT_PUBLIC_CHAIN_ID in frontend env config.',
+        reason: "Missing NEXT_PUBLIC_CHAIN_ID in frontend env config.",
       }
     }
     if (!rpcUrl) {
       return {
         ready: false,
         reason:
-          'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+          "RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.",
       }
     }
     if (!publicClient) {
       return {
         ready: false,
         reason:
-          'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+          "RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.",
       }
     }
     if (!isConnected) {
       return {
         ready: false,
-        reason: 'Connect your wallet from the navigation bar.',
+        reason: "Connect your wallet from the navigation bar.",
       }
     }
     if (!walletClient) {
       return {
         ready: false,
-        reason: 'Wallet client unavailable. Reconnect wallet and try again.',
+        reason: "Wallet client unavailable. Reconnect wallet and try again.",
       }
     }
     const actualChainId =
@@ -129,7 +116,7 @@ export const useAgentDeploy = () => {
     if (!actualChainId) {
       return {
         ready: false,
-        reason: 'Unable to detect wallet chain. Reconnect your wallet.',
+        reason: "Unable to detect wallet chain. Reconnect your wallet.",
       }
     }
     if (actualChainId && actualChainId !== expectedChainId) {
@@ -162,20 +149,20 @@ export const useAgentDeploy = () => {
     }
 
     refreshAgents(account).catch((error) => {
-      console.error('Failed to load agents:', error)
+      console.error("Failed to load agents:", error)
     })
   }, [account, publicClient])
 
   const validateWalletClients = () => {
     if (!walletStatus.ready) {
-      throw new Error(walletStatus.reason ?? 'Wallet not ready.')
+      throw new Error(walletStatus.reason ?? "Wallet not ready.")
     }
   }
 
   const waitForReceiptWithTimeout = async (hash: `0x${string}`) => {
     if (!publicClient) {
       throw new Error(
-        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+        "RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.",
       )
     }
 
@@ -187,8 +174,8 @@ export const useAgentDeploy = () => {
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      if (message.toLowerCase().includes('timeout')) {
-        throw new Error('RPC timeout — try again')
+      if (message.toLowerCase().includes("timeout")) {
+        throw new Error("RPC timeout — try again")
       }
       throw error
     }
@@ -203,12 +190,13 @@ export const useAgentDeploy = () => {
     error instanceof Error ? error.message : String(error)
 
   const isReplacementUnderpriced = (message: string) =>
-    message.includes('insufficient gas price to replace existing transaction') ||
-    message.includes('replacement transaction underpriced')
+    message.includes(
+      "insufficient gas price to replace existing transaction",
+    ) || message.includes("replacement transaction underpriced")
 
-  const isNonceTooLow = (message: string) => message.includes('nonce too low')
+  const isNonceTooLow = (message: string) => message.includes("nonce too low")
 
-  const isAlreadyKnown = (message: string) => message.includes('already known')
+  const isAlreadyKnown = (message: string) => message.includes("already known")
 
   const shouldRetryTx = (message: string) =>
     isReplacementUnderpriced(message) ||
@@ -226,23 +214,27 @@ export const useAgentDeploy = () => {
     send: (overrides: GasOverrides) => Promise<`0x${string}`>,
   ) => {
     if (!walletClient) {
-      throw new Error('Wallet client unavailable. Reconnect wallet and try again.')
+      throw new Error(
+        "Wallet client unavailable. Reconnect wallet and try again.",
+      )
     }
 
     if (!publicClient) {
       throw new Error(
-        'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+        "RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.",
       )
     }
 
     const sender = account ?? walletClient.account?.address
     if (!sender) {
-      throw new Error('Wallet account unavailable. Reconnect wallet and try again.')
+      throw new Error(
+        "Wallet account unavailable. Reconnect wallet and try again.",
+      )
     }
 
     let nonce = await publicClient.getTransactionCount({
       address: sender,
-      blockTag: 'pending',
+      blockTag: "pending",
     })
 
     for (let attempt = 0; attempt < gasBufferSteps.length; attempt += 1) {
@@ -263,7 +255,7 @@ export const useAgentDeploy = () => {
         if (shouldRefreshNonce(message)) {
           nonce = await publicClient.getTransactionCount({
             address: sender,
-            blockTag: 'pending',
+            blockTag: "pending",
           })
         }
 
@@ -271,7 +263,7 @@ export const useAgentDeploy = () => {
       }
     }
 
-    throw new Error('Transaction retry limit reached.')
+    throw new Error("Transaction retry limit reached.")
   }
 
   const generateAgent = async (prompt: string) => {
@@ -279,79 +271,80 @@ export const useAgentDeploy = () => {
     try {
       setError(null)
       const response = await request<{ code?: string; source?: string }>(
-        '/agents/generate',
+        "/agents/generate",
         {
           prompt,
         },
       )
       const code = response.code ?? response.source
       if (!code) {
-        throw new Error('Generation API returned no code')
+        throw new Error("Generation API returned no code")
       }
       setGeneratedCode(code)
-      setCompilationStatus('generated')
+      setCompilationStatus("generated")
       setCompiledArtifact(null)
 
       return code
     } catch (error) {
       const message = formatWalletError(error)
-      console.error('Failed to generate agent:', message)
+      console.error("Failed to generate agent:", message)
       setError(message)
-      setCompilationStatus('error')
+      setCompilationStatus("error")
     } finally {
       setGenerating(false)
     }
   }
 
   const compileAgent = async (code: string) => {
-    setCompilationStatus('compiling')
+    setCompilationStatus("compiling")
     try {
       setError(null)
-      const response = await request<CompilationResult>(
-        '/agents/compile',
-        {
-          code,
-        },
-      )
+      const response = await request<CompilationResult>("/agents/compile", {
+        code,
+      })
       if (!response.abi || !response.bytecode) {
-        throw new Error('Compilation API returned incomplete artifacts')
+        throw new Error("Compilation API returned incomplete artifacts")
       }
       setCompiledArtifact({
         abi: response.abi,
         bytecode: response.bytecode,
         contractName: response.contractName,
       })
-      setCompilationStatus('compiled')
+      setCompilationStatus("compiled")
       return response
     } catch (error) {
       const message = formatWalletError(error)
-      console.error('Compilation failed:', message)
+      console.error("Compilation failed:", message)
       setError(message)
-      setCompilationStatus('error')
+      setCompilationStatus("error")
       return null
     }
   }
 
   const deployAgent = async (bytecode: `0x${string}`, abi: Abi) => {
     setDeploying(true)
-    setDeployPhase('awaiting_wallet')
+    setDeployPhase("awaiting_wallet")
     try {
       setError(null)
       validateWalletClients()
 
       if (!walletClient) {
-        throw new Error('Wallet client unavailable. Reconnect wallet and try again.')
+        throw new Error(
+          "Wallet client unavailable. Reconnect wallet and try again.",
+        )
       }
 
       if (!publicClient) {
         throw new Error(
-          'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+          "RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.",
         )
       }
 
       const sender = account ?? walletClient.account?.address
       if (!sender) {
-        throw new Error('Wallet account unavailable. Reconnect wallet and try again.')
+        throw new Error(
+          "Wallet account unavailable. Reconnect wallet and try again.",
+        )
       }
 
       const encodedBytecode = encodeDeployData({
@@ -360,42 +353,40 @@ export const useAgentDeploy = () => {
         args: [sender],
       })
 
-      const agentName = compiledArtifact?.contractName ?? 'Agent'
+      const agentName = compiledArtifact?.contractName ?? "Agent"
       const hash = await sendWithRetry((overrides) =>
         createAgent(walletClient, agentName, encodedBytecode, overrides),
       )
-      setDeployPhase('submitted')
-      setDeployPhase('confirming')
+      setDeployPhase("submitted")
+      setDeployPhase("confirming")
       const receipt = await waitForReceiptWithTimeout(hash)
 
       const parsedLogs = parseEventLogs({
         abi: [AGENT_CREATED_EVENT],
         logs: receipt.logs,
       })
-      const created = parsedLogs.find(
-        (log) => log.eventName === 'AgentCreated',
-      )
+      const created = parsedLogs.find((log) => log.eventName === "AgentCreated")
       const agentAddress = created?.args?.agent as Address | undefined
 
       if (!agentAddress) {
-        throw new Error('Agent address not found in receipt logs')
+        throw new Error("Agent address not found in receipt logs")
       }
 
       setDeployedAddress(agentAddress)
-      setCompilationStatus('deployed')
+      setCompilationStatus("deployed")
       await refreshAgents(sender).catch((error) => {
-        console.error('Failed to refresh agents after deploy:', error)
+        console.error("Failed to refresh agents after deploy:", error)
       })
-      setDeployPhase('success')
+      setDeployPhase("success")
 
       return agentAddress
     } catch (error) {
       const message = formatWalletError(error)
-      console.error('Deployment failed:', message)
+      console.error("Deployment failed:", message)
       setError(message)
-      setCompilationStatus('error')
+      setCompilationStatus("error")
       setDeployPhase(
-        message.toLowerCase().includes('timeout') ? 'timeout' : 'error',
+        message.toLowerCase().includes("timeout") ? "timeout" : "error",
       )
       return null
     } finally {
@@ -408,42 +399,39 @@ export const useAgentDeploy = () => {
     agentAddress: Address,
   ) => {
     setRegistering(true)
-    setRegisterPhase('awaiting_wallet')
+    setRegisterPhase("awaiting_wallet")
     try {
       setError(null)
       validateWalletClients()
 
       if (!walletClient) {
-        throw new Error('Wallet client unavailable. Reconnect wallet and try again.')
+        throw new Error(
+          "Wallet client unavailable. Reconnect wallet and try again.",
+        )
       }
 
       if (!publicClient) {
         throw new Error(
-          'RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.',
+          "RPC unavailable. Check NEXT_PUBLIC_BATTLECHAIN_RPC_URL in frontend env config.",
         )
       }
 
       const hash = await sendWithRetry((overrides) =>
-        registerAgent(
-          walletClient,
-          battleId,
-          agentAddress,
-          overrides,
-        ),
+        registerAgent(walletClient, battleId, agentAddress, overrides),
       )
-      setRegisterPhase('submitted')
-      setRegisterPhase('confirming')
+      setRegisterPhase("submitted")
+      setRegisterPhase("confirming")
       await waitForReceiptWithTimeout(hash)
       setRegistrationHash(hash)
-      setRegisterPhase('success')
+      setRegisterPhase("success")
 
       return hash
     } catch (error) {
       const message = formatWalletError(error)
-      console.error('Registration failed:', message)
+      console.error("Registration failed:", message)
       setError(message)
       setRegisterPhase(
-        message.toLowerCase().includes('timeout') ? 'timeout' : 'error',
+        message.toLowerCase().includes("timeout") ? "timeout" : "error",
       )
       return null
     } finally {

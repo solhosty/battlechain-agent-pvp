@@ -1,11 +1,11 @@
-'use client'
+"use client"
 
-import React, { useMemo, useState } from 'react'
-import { formatEther } from 'viem'
-import { useWalletClient } from 'wagmi'
-import { useBattleChain } from '@/hooks/useBattleChain'
-import { claimPayout, claimPrize, withdrawPending } from '@/utils/battlechain'
-import { toast } from '@/components/ui/toast'
+import React, { useMemo, useState } from "react"
+import { formatEther } from "viem"
+import { useWalletClient } from "wagmi"
+import { useBattleChain } from "@/hooks/useBattleChain"
+import { claimPayout, claimPrize, withdrawPending } from "@/utils/battlechain"
+import { toast } from "@/components/ui/toast"
 
 const BattleHistory: React.FC = () => {
   const {
@@ -28,7 +28,7 @@ const BattleHistory: React.FC = () => {
         (pendingWithdrawalsByBattle[battleKey] ?? 0n) > 0n
 
       return (
-        (battle.state === 'Resolved' || battle.state === 'Claimed') &&
+        (battle.state === "Resolved" || battle.state === "Claimed") &&
         (participation?.asOwner || participation?.asBettor || hasClaimable)
       )
     })
@@ -42,16 +42,16 @@ const BattleHistory: React.FC = () => {
 
   const handleClaimPrize = async (battleId: bigint) => {
     if (!walletClient) {
-      toast.error('Connect your wallet to claim')
+      toast.error("Connect your wallet to claim")
       return
     }
     setProcessing(`prize-${battleId.toString()}`)
     try {
       await claimPrize(walletClient, battleId)
-      toast.success('Prize claim submitted')
+      toast.success("Prize claim submitted")
     } catch (error) {
-      console.error('Prize claim failed:', error)
-      toast.error('Prize claim failed')
+      console.error("Prize claim failed:", error)
+      toast.error("Prize claim failed")
     } finally {
       setProcessing(null)
     }
@@ -59,16 +59,16 @@ const BattleHistory: React.FC = () => {
 
   const handleClaimPayout = async (battleId: bigint) => {
     if (!walletClient) {
-      toast.error('Connect your wallet to claim')
+      toast.error("Connect your wallet to claim")
       return
     }
     setProcessing(`payout-${battleId.toString()}`)
     try {
       await claimPayout(walletClient, battleId)
-      toast.success('Payout claimed')
+      toast.success("Payout claimed")
     } catch (error) {
-      console.error('Payout claim failed:', error)
-      toast.error('Payout claim failed')
+      console.error("Payout claim failed:", error)
+      toast.error("Payout claim failed")
     } finally {
       setProcessing(null)
     }
@@ -76,16 +76,16 @@ const BattleHistory: React.FC = () => {
 
   const handleWithdraw = async (battleId: bigint, battleAddress: string) => {
     if (!walletClient) {
-      toast.error('Connect your wallet to withdraw')
+      toast.error("Connect your wallet to withdraw")
       return
     }
     setProcessing(`withdraw-${battleId.toString()}`)
     try {
       await withdrawPending(walletClient, battleAddress as `0x${string}`)
-      toast.success('Withdrawal submitted')
+      toast.success("Withdrawal submitted")
     } catch (error) {
-      console.error('Withdrawal failed:', error)
-      toast.error('Withdrawal failed')
+      console.error("Withdrawal failed:", error)
+      toast.error("Withdrawal failed")
     } finally {
       setProcessing(null)
     }
@@ -125,7 +125,8 @@ const BattleHistory: React.FC = () => {
                     Battle #{battle.id.toString()}
                   </h3>
                   <p className="text-sm text-gray-500">
-                    Winner: {battle.winner ? `${battle.winner.slice(0, 8)}...` : 'None'}
+                    Winner:{" "}
+                    {battle.winner ? `${battle.winner.slice(0, 8)}...` : "None"}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -144,9 +145,11 @@ const BattleHistory: React.FC = () => {
                       Withdrawal ready
                     </span>
                   ) : null}
-                  {claimablePrize === 0n && betPayout === 0n && pendingWithdrawal === 0n ? (
+                  {claimablePrize === 0n &&
+                  betPayout === 0n &&
+                  pendingWithdrawal === 0n ? (
                     <span className="rounded-full bg-gray-700/50 px-3 py-1 text-gray-300">
-                      {participation?.betClaimed ? 'Claimed' : 'No rewards'}
+                      {participation?.betClaimed ? "Claimed" : "No rewards"}
                     </span>
                   ) : null}
                 </div>
@@ -181,8 +184,8 @@ const BattleHistory: React.FC = () => {
                     className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-600"
                   >
                     {processing === `prize-${battle.id.toString()}`
-                      ? 'Claiming...'
-                      : 'Claim prize'}
+                      ? "Claiming..."
+                      : "Claim prize"}
                   </button>
                 ) : null}
                 {betPayout > 0n ? (
@@ -192,21 +195,19 @@ const BattleHistory: React.FC = () => {
                     className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-600"
                   >
                     {processing === `payout-${battle.id.toString()}`
-                      ? 'Claiming...'
-                      : 'Claim payout'}
+                      ? "Claiming..."
+                      : "Claim payout"}
                   </button>
                 ) : null}
                 {pendingWithdrawal > 0n ? (
                   <button
-                    onClick={() =>
-                      handleWithdraw(battle.id, battle.address)
-                    }
+                    onClick={() => handleWithdraw(battle.id, battle.address)}
                     disabled={processing === `withdraw-${battle.id.toString()}`}
                     className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700 disabled:bg-gray-600"
                   >
                     {processing === `withdraw-${battle.id.toString()}`
-                      ? 'Withdrawing...'
-                      : 'Withdraw'}
+                      ? "Withdrawing..."
+                      : "Withdraw"}
                   </button>
                 ) : null}
               </div>

@@ -1,103 +1,104 @@
-import type { Abi, Address, PublicClient, WalletClient } from 'viem'
-import { parseAbiItem, parseEther, parseGwei } from 'viem'
-import ArenaAbi from '@/abis/Arena.json'
-import BattleAbi from '@/abis/Battle.json'
-import AgentFactoryAbi from '@/abis/AgentFactory.json'
-import SpectatorBettingAbi from '@/abis/SpectatorBetting.json'
-import type { ChallengeType } from '@/types/contracts'
+import type { Abi, Address, PublicClient, WalletClient } from "viem"
+import { parseAbiItem, parseEther, parseGwei } from "viem"
+import ArenaAbi from "@/abis/Arena.json"
+import BattleAbi from "@/abis/Battle.json"
+import AgentFactoryAbi from "@/abis/AgentFactory.json"
+import SpectatorBettingAbi from "@/abis/SpectatorBetting.json"
+import type { ChallengeType } from "@/types/contracts"
 
 export const ARENA_ADDRESS = process.env.NEXT_PUBLIC_ARENA_ADDRESS as Address
-export const BETTING_ADDRESS = process.env.NEXT_PUBLIC_BETTING_ADDRESS as Address
-export const AGENT_FACTORY_ADDRESS =
-  process.env.NEXT_PUBLIC_AGENT_FACTORY_ADDRESS as Address
+export const BETTING_ADDRESS = process.env
+  .NEXT_PUBLIC_BETTING_ADDRESS as Address
+export const AGENT_FACTORY_ADDRESS = process.env
+  .NEXT_PUBLIC_AGENT_FACTORY_ADDRESS as Address
 export const ARENA_ABI = ArenaAbi.abi as Abi
 export const BATTLE_ABI = BattleAbi.abi as Abi
 export const AGENT_FACTORY_ABI = AgentFactoryAbi.abi as Abi
 export const BETTING_ABI = SpectatorBettingAbi.abi as Abi
-export const AGENT_STORAGE_KEY = 'battlechain.deployedAgents'
+export const AGENT_STORAGE_KEY = "battlechain.deployedAgents"
 export const AGENT_ABI = [
   {
-    type: 'function',
-    name: 'owner',
+    type: "function",
+    name: "owner",
     inputs: [],
-    outputs: [{ type: 'address' }],
+    outputs: [{ type: "address" }],
   },
 ] as const
 export const ARENA_PAGINATION_ABI = [
   {
-    type: 'function',
-    name: 'getCreatorBattleCount',
-    inputs: [{ type: 'address' }],
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
+    type: "function",
+    name: "getCreatorBattleCount",
+    inputs: [{ type: "address" }],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
   },
   {
-    type: 'function',
-    name: 'getCreatorBattles',
-    inputs: [{ type: 'address' }, { type: 'uint256' }, { type: 'uint256' }],
-    outputs: [{ type: 'uint256[]' }],
-    stateMutability: 'view',
+    type: "function",
+    name: "getCreatorBattles",
+    inputs: [{ type: "address" }, { type: "uint256" }, { type: "uint256" }],
+    outputs: [{ type: "uint256[]" }],
+    stateMutability: "view",
   },
   {
-    type: 'function',
-    name: 'getCreatorBattleAt',
-    inputs: [{ type: 'address' }, { type: 'uint256' }],
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
+    type: "function",
+    name: "getCreatorBattleAt",
+    inputs: [{ type: "address" }, { type: "uint256" }],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
   },
 ] as const
 const BATTLE_CLAIMABLE_ABI = [
   {
-    type: 'function',
-    name: 's_agentPrizes',
-    inputs: [{ type: 'address' }],
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
+    type: "function",
+    name: "s_agentPrizes",
+    inputs: [{ type: "address" }],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
   },
   {
-    type: 'function',
-    name: 's_pendingWithdrawals',
-    inputs: [{ type: 'address' }],
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
+    type: "function",
+    name: "s_pendingWithdrawals",
+    inputs: [{ type: "address" }],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
   },
   {
-    type: 'function',
-    name: 'agentOwner',
-    inputs: [{ type: 'address' }],
-    outputs: [{ type: 'address' }],
-    stateMutability: 'view',
+    type: "function",
+    name: "agentOwner",
+    inputs: [{ type: "address" }],
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
   },
   {
-    type: 'function',
-    name: 'withdraw',
+    type: "function",
+    name: "withdraw",
     inputs: [],
     outputs: [],
-    stateMutability: 'nonpayable',
+    stateMutability: "nonpayable",
   },
 ] as const
 const BETTING_CLAIMABLE_ABI = [
   {
-    type: 'function',
-    name: 's_betPayouts',
-    inputs: [{ type: 'address' }, { type: 'uint256' }],
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
+    type: "function",
+    name: "s_betPayouts",
+    inputs: [{ type: "address" }, { type: "uint256" }],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
   },
 ] as const
 const AGENT_REGISTERED_EVENT_SIGNATURE =
-  'event AgentRegistered(uint256 indexed battleId, address indexed agent)'
+  "event AgentRegistered(uint256 indexed battleId, address indexed agent)"
 export const AGENT_REGISTERED_EVENT = parseAbiItem(
   AGENT_REGISTERED_EVENT_SIGNATURE,
 )
 export const PRIZE_CLAIMED_EVENT = parseAbiItem(
-  'event PrizeClaimed(address indexed winner, uint256 amount)',
+  "event PrizeClaimed(address indexed winner, uint256 amount)",
 )
 export const BET_CLAIMED_EVENT = parseAbiItem(
-  'event BetClaimed(uint256 indexed battleId, address indexed bettor, uint256 payout)',
+  "event BetClaimed(uint256 indexed battleId, address indexed bettor, uint256 payout)",
 )
 const AGENT_CREATED_EVENT_SIGNATURE =
-  'event AgentCreated(uint256 indexed agentId, address indexed agent, address indexed owner, string name)'
+  "event AgentCreated(uint256 indexed agentId, address indexed agent, address indexed owner, string name)"
 export const AGENT_CREATED_EVENT = parseAbiItem(AGENT_CREATED_EVENT_SIGNATURE)
 
 export type GasOverrides = {
@@ -138,12 +139,11 @@ export const getGasOverrides = async (
   }
 
   const fees = await client.estimateFeesPerGas()
-  const multiplier = Number(process.env.NEXT_PUBLIC_GAS_FEE_MULTIPLIER ?? '1')
+  const multiplier = Number(process.env.NEXT_PUBLIC_GAS_FEE_MULTIPLIER ?? "1")
   const bump = multiplier > 0 ? BigInt(Math.round(multiplier * 100)) : 100n
 
   return {
-    maxFeePerGas:
-      maxFeeOverride ?? (fees.maxFeePerGas * bump) / 100n,
+    maxFeePerGas: maxFeeOverride ?? (fees.maxFeePerGas * bump) / 100n,
     maxPriorityFeePerGas:
       priorityOverride ?? (fees.maxPriorityFeePerGas * bump) / 100n,
   }
@@ -152,11 +152,11 @@ export const getGasOverrides = async (
 export const getAgentsByOwner = async (
   client: PublicClient,
   owner: Address,
-) : Promise<Address[]> =>
+): Promise<Address[]> =>
   client.readContract({
     address: AGENT_FACTORY_ADDRESS,
     abi: AGENT_FACTORY_ABI,
-    functionName: 'getAgentsByOwner',
+    functionName: "getAgentsByOwner",
     args: [owner],
   }) as Promise<Address[]>
 
@@ -167,7 +167,7 @@ export const getBattleAddress = async (
   client.readContract({
     address: ARENA_ADDRESS,
     abi: ARENA_ABI,
-    functionName: 'battles',
+    functionName: "battles",
     args: [battleId],
   })
 
@@ -178,7 +178,7 @@ export const getBattleAgents = async (
   client.readContract({
     address: battleAddress,
     abi: BATTLE_ABI,
-    functionName: 'getAgents',
+    functionName: "getAgents",
   })
 
 export const createBattle = async (
@@ -193,7 +193,7 @@ export const createBattle = async (
   return client.writeContract({
     address: ARENA_ADDRESS,
     abi: ARENA_ABI,
-    functionName: 'createBattle',
+    functionName: "createBattle",
     args: [challengeType, entryFeeWei, maxAgents, duration],
     value: entryFeeWei,
     ...gasOverrides,
@@ -209,7 +209,7 @@ export const createAgent = async (
   client.writeContract({
     address: AGENT_FACTORY_ADDRESS,
     abi: AGENT_FACTORY_ABI,
-    functionName: 'createAgent',
+    functionName: "createAgent",
     args: [name, bytecode],
     ...gasOverrides,
   })
@@ -223,7 +223,7 @@ export const registerAgent = async (
   client.writeContract({
     address: ARENA_ADDRESS,
     abi: ARENA_ABI,
-    functionName: 'registerAgent',
+    functionName: "registerAgent",
     args: [battleId, agentAddress],
     ...gasOverrides,
   })
@@ -236,7 +236,7 @@ export const startBattle = async (
   client.writeContract({
     address: ARENA_ADDRESS,
     abi: ARENA_ABI,
-    functionName: 'startBattle',
+    functionName: "startBattle",
     args: [battleId],
     ...gasOverrides,
   })
@@ -249,7 +249,7 @@ export const resolveBattle = async (
   client.writeContract({
     address: ARENA_ADDRESS,
     abi: ARENA_ABI,
-    functionName: 'resolveBattle',
+    functionName: "resolveBattle",
     args: [battleId],
     ...gasOverrides,
   })
@@ -264,7 +264,7 @@ export const placeBet = async (
   client.writeContract({
     address: BETTING_ADDRESS,
     abi: BETTING_ABI,
-    functionName: 'placeBet',
+    functionName: "placeBet",
     args: [battleId, agentIndex],
     value: parseEther(amountEth.toString()),
     ...gasOverrides,
@@ -274,7 +274,7 @@ export const claimPrize = async (client: WalletClient, battleId: bigint) =>
   client.writeContract({
     address: ARENA_ADDRESS,
     abi: ARENA_ABI,
-    functionName: 'claimPrize',
+    functionName: "claimPrize",
     args: [battleId],
   })
 
@@ -282,7 +282,7 @@ export const claimPayout = async (client: WalletClient, battleId: bigint) =>
   client.writeContract({
     address: BETTING_ADDRESS,
     abi: BETTING_ABI,
-    functionName: 'claimPayout',
+    functionName: "claimPayout",
     args: [battleId],
   })
 
@@ -293,7 +293,7 @@ export const withdrawPending = async (
   client.writeContract({
     address: battleAddress,
     abi: BATTLE_CLAIMABLE_ABI,
-    functionName: 'withdraw',
+    functionName: "withdraw",
   })
 
 export const getClaimablePrize = async (
@@ -304,7 +304,7 @@ export const getClaimablePrize = async (
   client.readContract({
     address: battleAddress,
     abi: BATTLE_CLAIMABLE_ABI,
-    functionName: 's_agentPrizes',
+    functionName: "s_agentPrizes",
     args: [account],
   })
 
@@ -316,7 +316,7 @@ export const getPendingWithdrawal = async (
   client.readContract({
     address: battleAddress,
     abi: BATTLE_CLAIMABLE_ABI,
-    functionName: 's_pendingWithdrawals',
+    functionName: "s_pendingWithdrawals",
     args: [account],
   })
 
@@ -328,7 +328,7 @@ export const getAgentOwner = async (
   client.readContract({
     address: battleAddress,
     abi: BATTLE_CLAIMABLE_ABI,
-    functionName: 'agentOwner',
+    functionName: "agentOwner",
     args: [agent],
   })
 
@@ -340,7 +340,7 @@ export const getClaimableBetPayout = async (
   client.readContract({
     address: BETTING_ADDRESS,
     abi: BETTING_CLAIMABLE_ABI,
-    functionName: 's_betPayouts',
+    functionName: "s_betPayouts",
     args: [account, battleId],
   })
 
@@ -352,7 +352,7 @@ export const getBetForWinner = async (
   const battle = (await client.readContract({
     address: BETTING_ADDRESS,
     abi: BETTING_ABI,
-    functionName: 'battles',
+    functionName: "battles",
     args: [battleId],
   })) as { resolved: boolean; winningAgentIndex: bigint }
 
@@ -363,7 +363,7 @@ export const getBetForWinner = async (
   const bet = (await client.readContract({
     address: BETTING_ADDRESS,
     abi: BETTING_ABI,
-    functionName: 'bets',
+    functionName: "bets",
     args: [battleId, battle.winningAgentIndex, bettor],
   })) as { amount: bigint; claimed: boolean }
 

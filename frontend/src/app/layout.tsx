@@ -1,11 +1,11 @@
-import type { Metadata } from 'next'
-import AppNav from '@/components/AppNav'
-import './globals.css'
-import { Providers } from './providers'
+import type { Metadata } from "next"
+import AppNav from "@/components/AppNav"
+import "./globals.css"
+import { Providers } from "./providers"
 
 export const metadata: Metadata = {
-  title: 'BattleChain PvP Agent Arena',
-  description: 'BattleChain PvP Agent Arena frontend',
+  title: "BattleChain PvP Agent Arena",
+  description: "BattleChain PvP Agent Arena frontend",
 }
 
 export default function RootLayout({
