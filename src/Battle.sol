@@ -10,16 +10,16 @@ contract Battle is IBattle {
     uint8 public constant MIN_AGENTS = 2;
     uint8 public constant MAX_AGENTS = 10;
     uint256 public constant BPS_DENOMINATOR = 10_000;
-    uint256 public constant WINNER_SHARE_BPS = 7_000;
+    uint256 public constant WINNER_SHARE_BPS = 7000;
     uint256 public constant AGENT_GAS_LIMIT = 200_000;
 
-    address public immutable challenge;
+    address payable public immutable challenge;
     uint256 public immutable entryFee;
     uint256 public immutable deadline;
     address public immutable arena;
     address public immutable creator;
     uint8 public immutable maxAgents;
-    
+
     address[] public agents;
     IBattle.BattleState public state;
     address public winner;
@@ -45,7 +45,9 @@ contract Battle is IBattle {
         _;
     }
 
-    modifier whenState(IBattle.BattleState _state) {
+    modifier whenState(
+        IBattle.BattleState _state
+    ) {
         require(state == _state, "Invalid state");
         _;
     }
@@ -65,7 +67,7 @@ contract Battle is IBattle {
         address _creator
     ) {
         require(_maxAgents >= MIN_AGENTS && _maxAgents <= MAX_AGENTS, "Invalid agent count");
-        challenge = _challenge;
+        challenge = payable(_challenge);
         entryFee = _entryFee;
         deadline = _deadline;
         arena = msg.sender;
@@ -82,12 +84,9 @@ contract Battle is IBattle {
     }
 
     /// @notice Registers an agent for battle execution.
-    function registerAgent(address agent)
-        external
-        onlyArena
-        whenState(IBattle.BattleState.PENDING)
-        nonReentrant
-    {
+    function registerAgent(
+        address agent
+    ) external onlyArena whenState(IBattle.BattleState.PENDING) nonReentrant {
         require(agents.length < maxAgents, "Max agents reached");
         require(agent != address(0), "Invalid agent");
         require(!agentRegistered[agent], "Agent already registered");
@@ -112,16 +111,16 @@ contract Battle is IBattle {
     /// @notice Executes each agent and determines the winner.
     function resolveBattle() external onlyArena whenState(IBattle.BattleState.ACTIVE) {
         require(block.timestamp >= deadline, "Battle still active");
-        
+
         address winningAgent;
         uint256 highestExtraction;
         uint256[] memory extractions = new uint256[](agents.length);
         bool tie;
-        
+
         for (uint256 i = 0; i < agents.length; i++) {
             uint256 beforeExtracted = BaseChallenge(challenge).getValueExtracted(agents[i]);
 
-            (bool success, ) = agents[i].call{gas: AGENT_GAS_LIMIT}(
+            (bool success,) = agents[i].call{gas: AGENT_GAS_LIMIT}(
                 abi.encodeWithSelector(IAgent.attack.selector, address(challenge))
             );
             if (!success) {
@@ -130,9 +129,8 @@ contract Battle is IBattle {
             }
 
             uint256 afterExtracted = BaseChallenge(challenge).getValueExtracted(agents[i]);
-            uint256 extracted = afterExtracted > beforeExtracted
-                ? afterExtracted - beforeExtracted
-                : 0;
+            uint256 extracted =
+                afterExtracted > beforeExtracted ? afterExtracted - beforeExtracted : 0;
             extractions[i] = extracted;
 
             if (extracted > highestExtraction) {
@@ -152,7 +150,7 @@ contract Battle is IBattle {
         winningAmount = highestExtraction;
         state = IBattle.BattleState.RESOLVED;
         prizePool = fundedPrizePool;
-        
+
         emit BattleResolved(winner, winningAmount, extractions);
 
         if (winner == address(0)) {
@@ -169,12 +167,9 @@ contract Battle is IBattle {
     }
 
     /// @notice Claims the prize pool for a winner via the arena.
-    function claimPrizeFor(address claimant)
-        external
-        onlyArena
-        whenState(IBattle.BattleState.RESOLVED)
-        nonReentrant
-    {
+    function claimPrizeFor(
+        address claimant
+    ) external onlyArena whenState(IBattle.BattleState.RESOLVED) nonReentrant {
         _claimPrize(claimant);
     }
 
@@ -184,14 +179,16 @@ contract Battle is IBattle {
         require(amount > 0, "No pending withdrawal");
         s_pendingWithdrawals[msg.sender] = 0;
 
-        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        (bool success,) = payable(msg.sender).call{value: amount}("");
         require(success, "Withdrawal failed");
 
         emit Withdrawal(msg.sender, amount);
     }
 
     /// @notice Returns claimable prize amount for an account.
-    function s_agentPrizes(address account) public view returns (uint256) {
+    function s_agentPrizes(
+        address account
+    ) public view returns (uint256) {
         if (state != IBattle.BattleState.RESOLVED) {
             return 0;
         }
@@ -234,17 +231,20 @@ contract Battle is IBattle {
         return challenge;
     }
 
-    function _getAgentOwner(address agent) internal view returns (address) {
-        (bool success, bytes memory data) = agent.staticcall(
-            abi.encodeWithSelector(IAgent.owner.selector)
-        );
+    function _getAgentOwner(
+        address agent
+    ) internal view returns (address) {
+        (bool success, bytes memory data) =
+            agent.staticcall(abi.encodeWithSelector(IAgent.owner.selector));
         require(success && data.length >= 32, "Invalid agent");
         address owner = abi.decode(data, (address));
         require(owner != address(0), "Invalid agent");
         return owner;
     }
 
-    function _claimPrize(address claimant) internal {
+    function _claimPrize(
+        address claimant
+    ) internal {
         require(winner != address(0), "No winner");
 
         address winnerOwner = agentOwner[winner];
@@ -268,5 +268,4 @@ contract Battle is IBattle {
 
         emit PrizeClaimed(winner, winnerShare);
     }
-
 }
