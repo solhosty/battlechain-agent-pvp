@@ -1,19 +1,21 @@
-'use client'
+"use client"
+// Fetch agents for selected battle
+/* Battle List */ /* Betting Panel */ /* Leaderboard */
 
-import React, { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { useChainId, usePublicClient, useWalletClient } from 'wagmi'
-import { useBattleChain } from '@/hooks/useBattleChain'
-import { getGasOverrides, placeBet, claimPayout } from '@/utils/battlechain'
-import { formatEther } from 'viem'
-import type { BattleSummary } from '@/types/contracts'
-import { toast } from '@/components/ui/toast'
-import { formatWalletError } from '@/utils/walletErrors'
+import React, { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
+import { useChainId, usePublicClient, useWalletClient } from "wagmi"
+import { useBattleChain } from "@/hooks/useBattleChain"
+import { getGasOverrides, placeBet, claimPayout } from "@/utils/battlechain"
+import { formatEther } from "viem"
+import type { BattleSummary } from "@/types/contracts"
+import { toast } from "@/components/ui/toast"
+import { formatWalletError } from "@/utils/walletErrors"
 
 interface Agent {
-  address: string;
-  name: string;
-  index: number;
+  address: string
+  name: string
+  index: number
 }
 
 const SpectatorView: React.FC = () => {
@@ -29,7 +31,9 @@ const SpectatorView: React.FC = () => {
   const chainId = useChainId()
   const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID)
   const hasExpectedChainId =
-    Number.isFinite(expectedChainId) && expectedChainId > 0
+    Number.isFinite(expectedChainId) &&
+    expectedChainId >
+      0
   const publicClient = usePublicClient({
     chainId: hasExpectedChainId ? expectedChainId : undefined,
   })
@@ -37,10 +41,12 @@ const SpectatorView: React.FC = () => {
     chainId: hasExpectedChainId ? expectedChainId : undefined,
   })
   const searchParams = useSearchParams()
-  const [selectedBattle, setSelectedBattle] = useState<BattleSummary | null>(null)
+  const [selectedBattle, setSelectedBattle] = useState<BattleSummary | null>(
+    null,
+  )
   const [agents, setAgents] = useState<Agent[]>([])
   const [agentsLoading, setAgentsLoading] = useState(false)
-  const [betAmount, setBetAmount] = useState('')
+  const [betAmount, setBetAmount] = useState("")
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null)
   const [betting, setBetting] = useState(false)
   const [claimingPayout, setClaimingPayout] = useState(false)
@@ -50,22 +56,27 @@ const SpectatorView: React.FC = () => {
   }, [fetchBattles])
 
   useEffect(() => {
-    const battleIdParam = searchParams.get('battleId')
+    const battleIdParam = searchParams.get("battleId")
     if (!battleIdParam) {
       return
     }
 
     const match = battles.find(
-      (battle) => battle.id.toString() === battleIdParam,
+      (battle) =>
+        battle.id.toString() ===
+        battleIdParam,
     )
-    if (match && match.id !== selectedBattle?.id) {
+    if (
+      match &&
+      match.id !==
+        selectedBattle?.id
+    ) {
       setSelectedBattle(match)
     }
   }, [battles, searchParams, selectedBattle])
 
   useEffect(() => {
     if (selectedBattle) {
-      // Fetch agents for selected battle
       fetchAgents(selectedBattle.address as `0x${string}`)
       setSelectedAgent(null)
     }
@@ -82,9 +93,9 @@ const SpectatorView: React.FC = () => {
       }))
       setAgents(summaries)
     } catch (error) {
-      console.error('Failed to load agents:', error)
+      console.error("Failed to load agents:", error)
       setAgents([])
-      toast.error('Failed to load agents')
+      toast.error("Failed to load agents")
     } finally {
       setAgentsLoading(false)
     }
@@ -93,14 +104,14 @@ const SpectatorView: React.FC = () => {
   const handlePlaceBet = async () => {
     if (!selectedBattle || selectedAgent === null || !betAmount) return
     if (!walletClient) {
-      toast.error('Connect your wallet to place a bet')
+      toast.error("Connect your wallet to place a bet")
       return
     }
 
     const actualChainId =
       chainId ?? walletClient.chain?.id ?? publicClient?.chain?.id
     if (!actualChainId) {
-      toast.error('Unable to detect wallet chain. Reconnect your wallet.')
+      toast.error("Unable to detect wallet chain. Reconnect your wallet.")
       return
     }
     if (hasExpectedChainId && actualChainId !== expectedChainId) {
@@ -118,10 +129,10 @@ const SpectatorView: React.FC = () => {
         parseFloat(betAmount),
         gasOverrides,
       )
-      toast.success('Bet placed successfully')
+      toast.success("Bet placed successfully")
     } catch (error) {
       const message = formatWalletError(error)
-      console.error('Failed to place bet:', message)
+      console.error("Failed to place bet:", message)
       toast.error(message)
     } finally {
       setBetting(false)
@@ -133,17 +144,17 @@ const SpectatorView: React.FC = () => {
       return
     }
     if (!walletClient) {
-      toast.error('Connect your wallet to claim')
+      toast.error("Connect your wallet to claim")
       return
     }
 
     setClaimingPayout(true)
     try {
       await claimPayout(walletClient, selectedBattle.id)
-      toast.success('Payout claimed')
+      toast.success("Payout claimed")
     } catch (error) {
-      console.error('Failed to claim payout:', error)
-      toast.error('Failed to claim payout')
+      console.error("Failed to claim payout:", error)
+      toast.error("Failed to claim payout")
     } finally {
       setClaimingPayout(false)
     }
@@ -184,55 +195,67 @@ const SpectatorView: React.FC = () => {
     <div className="py-10">
       <header className="mb-8">
         <h1 className="text-4xl font-bold mb-2">Spectator Arena</h1>
-        <p className="text-gray-400">Watch battles and place bets on your favorite agents</p>
+        <p className="text-gray-400">
+          Watch battles and place bets on your favorite agents
+        </p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Battle List */}
+        {}
         <div className="lg:col-span-2">
           <h2 className="text-2xl font-bold mb-4">Live Battles</h2>
-          
+
           {loading ? (
-            <div className="text-center text-gray-400 py-8">Loading battles...</div>
-          ) : battles.filter(b => b.state === 'Active').length === 0 ? (
-            <div className="text-center text-gray-400 py-8">No active battles</div>
+            <div className="text-center text-gray-400 py-8">
+              Loading battles...
+            </div>
+          ) : battles.filter((b) => b.state === "Active").length === 0 ? (
+            <div className="text-center text-gray-400 py-8">
+              No active battles
+            </div>
           ) : (
             <div className="grid gap-4">
-              {battles.filter(b => b.state === 'Active').map((battle) => (
-                <div
-                  key={battle.id}
-                  onClick={() => setSelectedBattle(battle)}
-                  className={`bg-gray-800 p-6 rounded-lg cursor-pointer transition ${
-                    selectedBattle?.id === battle.id ? 'ring-2 ring-blue-500' : 'hover:bg-gray-700'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-xl font-semibold">Battle #{battle.id}</h3>
-                      <p className="text-gray-400 text-sm mt-1">
-                        Entry Fee: {battle.entryFee} ETH
-                      </p>
+              {battles
+                .filter((b) => b.state === "Active")
+                .map((battle) => (
+                  <div
+                    key={battle.id}
+                    onClick={() => setSelectedBattle(battle)}
+                    className={`bg-gray-800 p-6 rounded-lg cursor-pointer transition ${
+                      selectedBattle?.id === battle.id
+                        ? "ring-2 ring-blue-500"
+                        : "hover:bg-gray-700"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="text-xl font-semibold">
+                          Battle #{battle.id}
+                        </h3>
+                        <p className="text-gray-400 text-sm mt-1">
+                          Entry Fee: {battle.entryFee} ETH
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span className="text-green-400 font-medium">Live</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                      <span className="text-green-400 font-medium">Live</span>
+                    <div className="mt-4 flex items-center gap-4 text-sm text-gray-400">
+                      <span>Ends: {battle.deadline}</span>
+                      <span>•</span>
+                      <span>Challenge: {battle.challenge.slice(0, 10)}...</span>
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center gap-4 text-sm text-gray-400">
-                    <span>Ends: {battle.deadline}</span>
-                    <span>•</span>
-                    <span>Challenge: {battle.challenge.slice(0, 10)}...</span>
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </div>
 
-        {/* Betting Panel */}
+        {}
         <div className="bg-gray-800 p-6 rounded-lg h-fit">
           <h2 className="text-2xl font-bold mb-4">Place Bet</h2>
-          
+
           {selectedBattle ? (
             <div>
               <div className="mb-4">
@@ -244,9 +267,13 @@ const SpectatorView: React.FC = () => {
                 <p className="text-gray-400 text-sm mb-2">Select Agent</p>
                 <div className="space-y-2">
                   {agentsLoading ? (
-                    <div className="text-sm text-gray-400">Loading agents...</div>
+                    <div className="text-sm text-gray-400">
+                      Loading agents...
+                    </div>
                   ) : agents.length === 0 ? (
-                    <div className="text-sm text-gray-400">No agents registered</div>
+                    <div className="text-sm text-gray-400">
+                      No agents registered
+                    </div>
                   ) : (
                     agents.map((agent) => (
                       <button
@@ -254,8 +281,8 @@ const SpectatorView: React.FC = () => {
                         onClick={() => setSelectedAgent(agent.index)}
                         className={`w-full p-3 rounded-lg text-left transition ${
                           selectedAgent === agent.index
-                            ? 'bg-blue-600'
-                            : 'bg-gray-700 hover:bg-gray-600'
+                            ? "bg-blue-600"
+                            : "bg-gray-700 hover:bg-gray-600"
                         }`}
                       >
                         <p className="font-medium">{agent.name}</p>
@@ -283,18 +310,31 @@ const SpectatorView: React.FC = () => {
 
               <button
                 onClick={handlePlaceBet}
-                disabled={!isConnected || betting || selectedAgent === null || !betAmount}
+                disabled={
+                  !isConnected ||
+                  betting ||
+                  selectedAgent === null ||
+                  !betAmount
+                }
                 className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition"
               >
-                {betting ? 'Placing Bet...' : isConnected ? 'Place Bet' : 'Connect to Bet'}
+                {betting
+                  ? "Placing Bet..."
+                  : isConnected
+                    ? "Place Bet"
+                    : "Connect to Bet"}
               </button>
 
               <div className="mt-4 p-4 bg-gray-700 rounded-lg">
                 <p className="text-sm text-gray-400">Potential Payout</p>
                 <p className="text-xl font-bold text-green-400">
-                  {betAmount ? `${(parseFloat(betAmount) * 2).toFixed(2)} ETH` : '-'} 
+                  {betAmount
+                    ? `${(parseFloat(betAmount) * 2).toFixed(2)} ETH`
+                    : "-"}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Based on current odds</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Based on current odds
+                </p>
               </div>
 
               {(() => {
@@ -315,7 +355,8 @@ const SpectatorView: React.FC = () => {
                 if (payout === 0n) {
                   return (
                     <div className="mt-4 rounded-lg border border-blue-500/30 bg-blue-900/20 p-3 text-sm text-blue-200">
-                      Your bet is registered. Payout will unlock after resolution.
+                      Your bet is registered. Payout will unlock after
+                      resolution.
                     </div>
                   )
                 }
@@ -330,7 +371,7 @@ const SpectatorView: React.FC = () => {
                       disabled={!isConnected || claimingPayout}
                       className="mt-3 w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-600"
                     >
-                      {claimingPayout ? 'Claiming...' : 'Claim Payout'}
+                      {claimingPayout ? "Claiming..." : "Claim Payout"}
                     </button>
                   </div>
                 )
@@ -344,7 +385,7 @@ const SpectatorView: React.FC = () => {
         </div>
       </div>
 
-      {/* Leaderboard */}
+      {}
       <div className="mt-8 bg-gray-800 p-6 rounded-lg">
         <h2 className="text-2xl font-bold mb-4">Top Performing Agents</h2>
         <div className="overflow-x-auto">
@@ -359,7 +400,9 @@ const SpectatorView: React.FC = () => {
                   <th className="pb-3 text-gray-400 font-medium">Rank</th>
                   <th className="pb-3 text-gray-400 font-medium">Agent</th>
                   <th className="pb-3 text-gray-400 font-medium">Wins</th>
-                  <th className="pb-3 text-gray-400 font-medium">Total Extracted</th>
+                  <th className="pb-3 text-gray-400 font-medium">
+                    Total Extracted
+                  </th>
                   <th className="pb-3 text-gray-400 font-medium">Win Rate</th>
                 </tr>
               </thead>
@@ -369,11 +412,11 @@ const SpectatorView: React.FC = () => {
                     <td className="py-4 font-bold text-yellow-400">
                       #{index + 1}
                     </td>
-                    <td className="py-4">
-                      {row.address.slice(0, 10)}...
-                    </td>
+                    <td className="py-4">{row.address.slice(0, 10)}...</td>
                     <td className="py-4">{row.wins}</td>
-                    <td className="py-4">{row.totalExtracted.toFixed(2)} ETH</td>
+                    <td className="py-4">
+                      {row.totalExtracted.toFixed(2)} ETH
+                    </td>
                     <td className="py-4 text-green-400">
                       {row.winRate.toFixed(0)}%
                     </td>

@@ -1,18 +1,18 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { ConnectKitButton } from 'connectkit'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { formatEther } from 'viem'
-import { useAccount } from 'wagmi'
-import { useBattleChain } from '@/hooks/useBattleChain'
+import { useState } from "react"
+import { ConnectKitButton } from "connectkit"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { formatEther } from "viem"
+import { useAccount } from "wagmi"
+import { useBattleChain } from "@/hooks/useBattleChain"
 
 const navItems = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/dashboard', label: 'Balance' },
-  { to: '/studio', label: 'Studio' },
-  { to: '/spectate', label: 'Spectate' },
+  { to: "/", label: "Dashboard" },
+  { to: "/dashboard", label: "Balance" },
+  { to: "/studio", label: "Studio" },
+  { to: "/spectate", label: "Spectate" },
 ]
 
 const AppNav = () => {
@@ -31,10 +31,10 @@ const AppNav = () => {
 
   const linkClass = (isActive: boolean) => {
     const base =
-      'inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors '
-    const active = 'bg-muted text-foreground'
+      "inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors "
+    const active = "bg-muted text-foreground"
     const inactive =
-      'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+      "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
     return `${base}${isActive ? active : inactive}`
   }
 
@@ -58,7 +58,7 @@ const AppNav = () => {
               >
                 <span className="inline-flex items-center gap-2">
                   {item.label}
-                  {item.to === '/dashboard' && hasClaimable ? (
+                  {item.to === "/dashboard" && hasClaimable ? (
                     <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
                       {claimableLabel}
                     </span>
@@ -78,7 +78,7 @@ const AppNav = () => {
               >
                 {address
                   ? `${address.slice(0, 6)}...${address.slice(-4)}`
-                  : 'Connect Wallet'}
+                  : "Connect Wallet"}
               </button>
             )}
           </ConnectKitButton.Custom>
@@ -110,7 +110,7 @@ const AppNav = () => {
               >
                 <span className="inline-flex items-center gap-2">
                   {item.label}
-                  {item.to === '/dashboard' && hasClaimable ? (
+                  {item.to === "/dashboard" && hasClaimable ? (
                     <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
                       {claimableLabel}
                     </span>
@@ -125,13 +125,13 @@ const AppNav = () => {
                 <button
                   onClick={() => {
                     setMenuOpen(false)
-                    show()
+                    show?.()
                   }}
                   className="w-full rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background transition-opacity hover:opacity-90"
                 >
                   {address
                     ? `${address.slice(0, 6)}...${address.slice(-4)}`
-                    : 'Connect Wallet'}
+                    : "Connect Wallet"}
                 </button>
               )}
             </ConnectKitButton.Custom>

@@ -11,12 +11,17 @@ import "./mocks/MockAgent.sol";
 contract AccountingChallenge is BaseChallenge {
     event Drained(address indexed recipient, uint256 amount);
 
-    constructor(uint8 _difficulty) BaseChallenge(_difficulty) {}
+    constructor(
+        uint8 _difficulty
+    ) BaseChallenge(_difficulty) {}
 
-    function drain(address recipient, uint256 amount) external {
+    function drain(
+        address recipient,
+        uint256 amount
+    ) external {
         require(address(this).balance >= amount, "Insufficient balance");
         recordExtraction(msg.sender, amount);
-        (bool success, ) = payable(recipient).call{value: amount}("");
+        (bool success,) = payable(recipient).call{value: amount}("");
         require(success, "Drain failed");
         emit Drained(recipient, amount);
     }
@@ -42,15 +47,14 @@ contract DrainAgent is IAgent {
         orchestrator = msg.sender;
     }
 
-    function attack(address target) external override {
+    function attack(
+        address target
+    ) external override {
         require(msg.sender == orchestrator, "Only orchestrator");
         require(shouldSucceed, "Attack failed");
 
         if (extractionAmount > 0) {
-            AccountingChallenge(payable(target)).drain(
-                address(this),
-                extractionAmount
-            );
+            AccountingChallenge(payable(target)).drain(address(this), extractionAmount);
         }
     }
 
@@ -58,11 +62,15 @@ contract DrainAgent is IAgent {
         return name;
     }
 
-    function setOwner(address newOwner) external {
+    function setOwner(
+        address newOwner
+    ) external {
         owner = newOwner;
     }
 
-    function setOrchestrator(address newOrchestrator) external {
+    function setOrchestrator(
+        address newOrchestrator
+    ) external {
         orchestrator = newOrchestrator;
     }
 
@@ -76,14 +84,20 @@ contract StateCheckingAgent is IAgent {
     address public battle;
     IBattle.BattleState public observedState;
 
-    constructor(string memory _name, address _owner, address _battle) {
+    constructor(
+        string memory _name,
+        address _owner,
+        address _battle
+    ) {
         name = _name;
         owner = _owner;
         battle = _battle;
         orchestrator = msg.sender;
     }
 
-    function attack(address) external override {
+    function attack(
+        address
+    ) external override {
         require(msg.sender == orchestrator, "Only orchestrator");
         observedState = IBattle(battle).getState();
     }
@@ -92,7 +106,9 @@ contract StateCheckingAgent is IAgent {
         return name;
     }
 
-    function setOrchestrator(address newOrchestrator) external {
+    function setOrchestrator(
+        address newOrchestrator
+    ) external {
         orchestrator = newOrchestrator;
     }
 }
@@ -100,27 +116,21 @@ contract StateCheckingAgent is IAgent {
 contract BattleTest is Test {
     Battle public battle;
     AccountingChallenge public challenge;
-    
+
     address public arena = address(1);
     address public player1 = address(2);
     address public player2 = address(3);
     address public player3 = address(4);
-    
+
     uint256 public constant ENTRY_FEE = 1 ether;
     uint256 public constant DEADLINE = 1 days;
 
     function setUp() public {
         challenge = new AccountingChallenge(1);
-        
+
         vm.prank(arena);
-        battle = new Battle(
-            address(challenge),
-            ENTRY_FEE,
-            5,
-            block.timestamp + DEADLINE,
-            arena
-        );
-        
+        battle = new Battle(address(challenge), ENTRY_FEE, 5, block.timestamp + DEADLINE, arena);
+
         // Fund challenge
         vm.deal(arena, 10 ether);
         vm.prank(arena);
@@ -130,10 +140,10 @@ contract BattleTest is Test {
     function testRegisterAgent() public {
         MockAgent agent = new MockAgent("Agent1", player1, true, 0);
         agent.setOrchestrator(address(battle));
-        
+
         vm.prank(arena);
         battle.registerAgent(address(agent));
-        
+
         address[] memory agents = battle.getAgents();
         assertEq(agents.length, 1);
         assertEq(agents[0], address(agent));
@@ -144,23 +154,23 @@ contract BattleTest is Test {
         MockAgent agent2 = new MockAgent("Agent2", player2, true, 0);
         agent1.setOrchestrator(address(battle));
         agent2.setOrchestrator(address(battle));
-        
+
         vm.startPrank(arena);
         battle.registerAgent(address(agent1));
         battle.registerAgent(address(agent2));
         battle.startBattle();
         vm.stopPrank();
-        
+
         assertEq(uint256(battle.getState()), uint256(IBattle.BattleState.ACTIVE));
     }
 
     function testStartBattleNotEnoughAgents() public {
         MockAgent agent1 = new MockAgent("Agent1", player1, true, 0);
         agent1.setOrchestrator(address(battle));
-        
+
         vm.prank(arena);
         battle.registerAgent(address(agent1));
-        
+
         vm.prank(arena);
         vm.expectRevert("Need at least 2 agents");
         battle.startBattle();
@@ -172,30 +182,26 @@ contract BattleTest is Test {
         DrainAgent agent2 = new DrainAgent("Agent2", player2, true, 2 ether);
         agent1.setOrchestrator(address(battle));
         agent2.setOrchestrator(address(battle));
-        
+
         vm.startPrank(arena);
         battle.registerAgent(address(agent1));
         battle.registerAgent(address(agent2));
         battle.startBattle();
         vm.stopPrank();
-        
+
         // Warp past deadline
         vm.warp(block.timestamp + DEADLINE + 1);
-        
+
         vm.prank(arena);
         battle.resolveBattle();
-        
+
         assertEq(uint256(battle.getState()), uint256(IBattle.BattleState.RESOLVED));
         assertEq(battle.getWinner(), address(agent2)); // Agent2 extracted more
         assertEq(battle.winningAmount(), 2 ether);
     }
 
     function testResolveBattleStateDuringAttack() public {
-        StateCheckingAgent agent1 = new StateCheckingAgent(
-            "Agent1",
-            player1,
-            address(battle)
-        );
+        StateCheckingAgent agent1 = new StateCheckingAgent("Agent1", player1, address(battle));
         DrainAgent agent2 = new DrainAgent("Agent2", player2, true, 1 ether);
         agent1.setOrchestrator(address(battle));
         agent2.setOrchestrator(address(battle));
@@ -220,13 +226,13 @@ contract BattleTest is Test {
         MockAgent agent2 = new MockAgent("Agent2", player2, true, 0);
         agent1.setOrchestrator(address(battle));
         agent2.setOrchestrator(address(battle));
-        
+
         vm.startPrank(arena);
         battle.registerAgent(address(agent1));
         battle.registerAgent(address(agent2));
         battle.startBattle();
         vm.stopPrank();
-        
+
         vm.prank(arena);
         vm.expectRevert("Battle still active");
         battle.resolveBattle();
@@ -246,15 +252,15 @@ contract BattleTest is Test {
         battle.registerAgent(address(agent2));
         battle.startBattle();
         vm.stopPrank();
-        
+
         vm.warp(block.timestamp + DEADLINE + 1);
-        
+
         vm.prank(arena);
         battle.resolveBattle();
-        
+
         uint256 initialBalance = player2.balance;
         uint256 creatorBalance = arena.balance;
-        
+
         // Claim prize as winner
         vm.prank(player2);
         battle.claimPrize();
@@ -304,18 +310,18 @@ contract BattleTest is Test {
         DrainAgent agent2 = new DrainAgent("Agent2", player2, true, 1 ether);
         agent1.setOrchestrator(address(battle));
         agent2.setOrchestrator(address(battle));
-        
+
         vm.startPrank(arena);
         battle.registerAgent(address(agent1));
         battle.registerAgent(address(agent2));
         battle.startBattle();
         vm.stopPrank();
-        
+
         vm.warp(block.timestamp + DEADLINE + 1);
-        
+
         vm.prank(arena);
         battle.resolveBattle();
-        
+
         vm.prank(player1);
         vm.expectRevert("Not winner");
         battle.claimPrize();
@@ -327,18 +333,18 @@ contract BattleTest is Test {
         DrainAgent agent2 = new DrainAgent("Agent2", player2, true, 1 ether); // Will succeed
         agent1.setOrchestrator(address(battle));
         agent2.setOrchestrator(address(battle));
-        
+
         vm.startPrank(arena);
         battle.registerAgent(address(agent1));
         battle.registerAgent(address(agent2));
         battle.startBattle();
         vm.stopPrank();
-        
+
         vm.warp(block.timestamp + DEADLINE + 1);
-        
+
         vm.prank(arena);
         battle.resolveBattle();
-        
+
         // Even though agent1 failed, agent2 should still be winner
         assertEq(battle.getWinner(), address(agent2));
     }
@@ -426,14 +432,14 @@ contract BattleTest is Test {
         assertEq(battle.s_pendingWithdrawals(arena), 4 ether);
 
         vm.prank(player1);
-        vm.expectRevert("No winner");
+        vm.expectRevert("Invalid state");
         battle.claimPrize();
     }
 
     function testDirectEthTransferRejected() public {
         vm.deal(player1, 1 ether);
         vm.prank(player1);
-        (bool success, ) = address(battle).call{value: 1 ether}("");
+        (bool success,) = address(battle).call{value: 1 ether}("");
         assertFalse(success);
         assertEq(address(battle).balance, 0);
         assertEq(battle.fundedPrizePool(), 0);

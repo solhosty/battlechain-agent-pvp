@@ -1,30 +1,29 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { formatEther, zeroAddress } from 'viem'
-import { useAccount, usePublicClient } from 'wagmi'
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { formatEther, zeroAddress } from "viem"
+import { useAccount, usePublicClient } from "wagmi"
 import {
   ARENA_ABI,
   ARENA_ADDRESS,
   BATTLE_ABI,
   ARENA_PAGINATION_ABI,
-  BET_CLAIMED_EVENT,
+  BETTING_ABI,
   BETTING_ADDRESS,
-  PRIZE_CLAIMED_EVENT,
   getAgentOwner,
   getBetForWinner,
   getBattleAgents,
   getClaimableBetPayout,
   getClaimablePrize,
   getPendingWithdrawal,
-} from '../utils/battlechain'
-import type { BattleStateLabel, BattleSummary } from '../types/contracts'
+} from "../utils/battlechain"
+import type { BattleStateLabel, BattleSummary } from "../types/contracts"
 
 const battleStateLabels: BattleStateLabel[] = [
-  'Pending',
-  'Active',
-  'Executing',
-  'Resolved',
-  'Claimed',
-];
+  "Pending",
+  "Active",
+  "Executing",
+  "Resolved",
+  "Claimed",
+]
 
 export const useBattleChain = () => {
   const { address, isConnected } = useAccount()
@@ -32,18 +31,18 @@ export const useBattleChain = () => {
   const [battles, setBattles] = useState<BattleSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [creatorBattleIds, setCreatorBattleIds] = useState<bigint[]>([])
-  const [claimablePrizesByBattle, setClaimablePrizesByBattle] = useState<
-    Record<string, bigint>
-  >({})
-  const [pendingWithdrawalsByBattle, setPendingWithdrawalsByBattle] = useState<
-    Record<string, bigint>
-  >({})
-  const [betPayoutsByBattle, setBetPayoutsByBattle] = useState<
-    Record<string, bigint>
-  >({})
-  const [participationByBattle, setParticipationByBattle] = useState<
-    Record<string, { asOwner: boolean; asBettor: boolean; betClaimed: boolean }>
-  >({})
+  const [claimablePrizesByBattle, setClaimablePrizesByBattle] =
+    useState<Record<string, bigint>>({})
+  const [pendingWithdrawalsByBattle, setPendingWithdrawalsByBattle] =
+    useState<Record<string, bigint>>({})
+  const [betPayoutsByBattle, setBetPayoutsByBattle] =
+    useState<Record<string, bigint>>({})
+  const [participationByBattle, setParticipationByBattle] =
+    useState<Record<string, {
+      asOwner: boolean
+      asBettor: boolean
+      betClaimed: boolean
+    }>>({})
 
   const publicClientRef = useRef(publicClient)
   const accountRef = useRef({ address, isConnected })
@@ -74,13 +73,13 @@ export const useBattleChain = () => {
       let battleIds: bigint[] = []
       let needsFallback = false
       try {
-        battleIds = (await client.readContract({
+        battleIds = ((await client.readContract({
           address: ARENA_ADDRESS,
           abi: ARENA_ABI,
-          functionName: 'getAllBattleIds',
-        })) as bigint[]
+          functionName: "getAllBattleIds",
+        })) as bigint[])
       } catch (error) {
-        console.warn('getAllBattleIds not available, using fallback')
+        console.warn("getAllBattleIds not available, using fallback")
         needsFallback = true
       }
 
@@ -89,14 +88,12 @@ export const useBattleChain = () => {
           const nextBattleId = (await client.readContract({
             address: ARENA_ADDRESS,
             abi: ARENA_ABI,
-            functionName: 'nextBattleId',
+            functionName: "nextBattleId",
           })) as bigint
           const total = Number(nextBattleId)
-          battleIds = Array.from({ length: total }, (_, index) =>
-            BigInt(index),
-          )
+          battleIds = Array.from({ length: total }, (_, index) => BigInt(index))
         } catch (error) {
-          console.warn('nextBattleId fallback not available')
+          console.warn("nextBattleId fallback not available")
         }
       }
 
@@ -106,7 +103,7 @@ export const useBattleChain = () => {
           const count = (await client.readContract({
             address: ARENA_ADDRESS,
             abi: ARENA_PAGINATION_ABI,
-            functionName: 'getCreatorBattleCount',
+            functionName: "getCreatorBattleCount",
             args: [currentAddress],
           })) as bigint
           const pageSize = 25n
@@ -114,13 +111,13 @@ export const useBattleChain = () => {
             const page = (await client.readContract({
               address: ARENA_ADDRESS,
               abi: ARENA_PAGINATION_ABI,
-              functionName: 'getCreatorBattles',
+              functionName: "getCreatorBattles",
               args: [currentAddress, offset, pageSize],
             })) as bigint[]
             creatorIds = [...creatorIds, ...page]
           }
         } catch (error) {
-          console.warn('getCreatorBattles pagination not available')
+          console.warn("getCreatorBattles pagination not available")
         }
 
         if (creatorIds.length === 0) {
@@ -128,12 +125,12 @@ export const useBattleChain = () => {
             const fallback = (await client.readContract({
               address: ARENA_ADDRESS,
               abi: ARENA_ABI,
-              functionName: 'getCreatorBattles',
+              functionName: "getCreatorBattles",
               args: [currentAddress],
             })) as bigint[]
             creatorIds = fallback
           } catch (error) {
-            console.warn('getCreatorBattles fallback not available')
+            console.warn("getCreatorBattles fallback not available")
           }
         }
 
@@ -147,7 +144,7 @@ export const useBattleChain = () => {
           const battleAddress = (await client.readContract({
             address: ARENA_ADDRESS,
             abi: ARENA_ABI,
-            functionName: 'battles',
+            functionName: "battles",
             args: [id],
           })) as `0x${string}`
 
@@ -156,27 +153,27 @@ export const useBattleChain = () => {
               client.readContract({
                 address: battleAddress,
                 abi: BATTLE_ABI,
-                functionName: 'getState',
+                functionName: "getState",
               }),
               client.readContract({
                 address: battleAddress,
                 abi: BATTLE_ABI,
-                functionName: 'getChallenge',
+                functionName: "getChallenge",
               }),
               client.readContract({
                 address: battleAddress,
                 abi: BATTLE_ABI,
-                functionName: 'entryFee',
+                functionName: "entryFee",
               }),
               client.readContract({
                 address: battleAddress,
                 abi: BATTLE_ABI,
-                functionName: 'deadline',
+                functionName: "deadline",
               }),
               client.readContract({
                 address: battleAddress,
                 abi: BATTLE_ABI,
-                functionName: 'getWinner',
+                functionName: "getWinner",
               }),
             ])
 
@@ -184,23 +181,22 @@ export const useBattleChain = () => {
           return {
             id,
             address: battleAddress,
-            state: battleStateLabels[stateIndex] ?? 'Pending',
+            state: battleStateLabels[stateIndex] ?? "Pending",
             challenge: challenge as string,
             entryFee: formatEther(entryFee as bigint),
             deadline: new Date(Number(deadline) * 1000).toLocaleString(),
-            winner:
-              winner === zeroAddress ? null : (winner as `0x${string}`),
+            winner: winner === zeroAddress ? null : winner as `0x${string}`,
           }
         }),
       )
 
       setBattles(battleData)
     } catch (error) {
-      console.error('Failed to fetch battles:', error)
+      console.error("Failed to fetch battles:", error)
     } finally {
       setLoading(false)
     }
-   }, [])
+  }, [])
 
   const refreshClaimables = useCallback(async () => {
     const client = publicClientRef.current
@@ -218,14 +214,15 @@ export const useBattleChain = () => {
     const prizeMap: Record<string, bigint> = {}
     const pendingMap: Record<string, bigint> = {}
     const betMap: Record<string, bigint> = {}
-    const participation: Record<
-      string,
-      { asOwner: boolean; asBettor: boolean; betClaimed: boolean }
-    > = {}
+    const participation: Record<string, {
+      asOwner: boolean
+      asBettor: boolean
+      betClaimed: boolean
+    }> = {}
 
     const normalize = (value: string) => value.toLowerCase()
     const resolvedBattles = battlesRef.current.filter(
-      (battle) => battle.state === 'Resolved' || battle.state === 'Claimed',
+      (battle) => battle.state === "Resolved" || battle.state === "Claimed",
     )
 
     await Promise.all(
@@ -263,9 +260,9 @@ export const useBattleChain = () => {
             asOwner = false
           }
 
-          prizeMap[battleId.toString()] = claimablePrize as bigint
-          pendingMap[battleId.toString()] = pendingWithdrawal as bigint
-          betMap[battleId.toString()] = betPayout as bigint
+          prizeMap[battleId.toString()] = (claimablePrize as bigint)
+          pendingMap[battleId.toString()] = (pendingWithdrawal as bigint)
+          betMap[battleId.toString()] = (betPayout as bigint)
           participation[battleId.toString()] = {
             asOwner,
             asBettor,
@@ -293,11 +290,12 @@ export const useBattleChain = () => {
       }
 
       try {
-        return (await getBattleAgents(client, battleAddress)) as
-          | `0x${string}`[]
-          | []
+        return (await getBattleAgents(
+          client,
+          battleAddress,
+        )) as `0x${string}`[] | []
       } catch (error) {
-        console.error('Failed to fetch battle agents:', error)
+        console.error("Failed to fetch battle agents:", error)
         return []
       }
     },
@@ -320,7 +318,8 @@ export const useBattleChain = () => {
       const battleAddress = battle.address as `0x${string}`
       const unwatch = client.watchContractEvent({
         address: battleAddress,
-        event: PRIZE_CLAIMED_EVENT,
+        abi: BATTLE_ABI,
+        eventName: "PrizeClaimed",
         onLogs: () => refreshClaimables(),
       })
       unwatchers.push(unwatch)
@@ -328,7 +327,8 @@ export const useBattleChain = () => {
 
     const unwatchBet = client.watchContractEvent({
       address: BETTING_ADDRESS,
-      event: BET_CLAIMED_EVENT,
+      abi: BETTING_ABI,
+      eventName: "BetClaimed",
       onLogs: () => refreshClaimables(),
     })
     unwatchers.push(unwatchBet)
