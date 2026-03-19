@@ -12,10 +12,7 @@ contract AgentFactory is IAgentFactory {
     mapping(uint256 => address) public agentById;
 
     event AgentCreated(
-        uint256 indexed agentId,
-        address indexed agent,
-        address indexed owner,
-        string name
+        uint256 indexed agentId, address indexed agent, address indexed owner, string name
     );
     event OwnerUpdated(address indexed newOwner);
 
@@ -30,7 +27,9 @@ contract AgentFactory is IAgentFactory {
     }
 
     /// @notice Transfers contract ownership.
-    function setOwner(address newOwner) external onlyOwner {
+    function setOwner(
+        address newOwner
+    ) external onlyOwner {
         owner = newOwner;
         emit OwnerUpdated(newOwner);
     }
@@ -59,7 +58,9 @@ contract AgentFactory is IAgentFactory {
     }
 
     /// @notice Returns agents deployed by the given owner.
-    function getAgentsByOwner(address ownerAddress) external view returns (address[] memory) {
+    function getAgentsByOwner(
+        address ownerAddress
+    ) external view returns (address[] memory) {
         return agentsByOwner[ownerAddress];
     }
 

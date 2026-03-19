@@ -26,22 +26,15 @@ contract SpectatorBetting {
     mapping(uint256 => address[]) public battleAgents;
     mapping(uint256 => uint256) public remainingPool;
     mapping(uint256 => uint256) public remainingWinningWager;
-    
+
     address public arena;
     bool public paused;
 
     event BetPlaced(
-        uint256 indexed battleId,
-        address indexed bettor,
-        uint256 agentIndex,
-        uint256 amount
+        uint256 indexed battleId, address indexed bettor, uint256 agentIndex, uint256 amount
     );
     event BetCommitted(uint256 indexed battleId, address indexed bettor, bytes32 commitHash);
-    event BetClaimed(
-        uint256 indexed battleId,
-        address indexed bettor,
-        uint256 payout
-    );
+    event BetClaimed(uint256 indexed battleId, address indexed bettor, uint256 payout);
     event BattleRegistered(uint256 indexed battleId, address[] agents);
     event BetsResolved(uint256 indexed battleId, uint256 winningAgentIndex);
     event Paused(bool paused);
@@ -61,7 +54,9 @@ contract SpectatorBetting {
         _;
     }
 
-    constructor(address _arena) {
+    constructor(
+        address _arena
+    ) {
         arena = _arena;
     }
 
@@ -87,29 +82,24 @@ contract SpectatorBetting {
                 require(agent != agents[j], "Duplicate agent");
             }
         }
-        
-        battles[battleId] = BattleInfo({
-            startTime: startTime,
-            resolved: false,
-            winningAgentIndex: 0
-        });
+
+        battles[battleId] =
+            BattleInfo({startTime: startTime, resolved: false, winningAgentIndex: 0});
         battleAgents[battleId] = agents;
-        
+
         emit BattleRegistered(battleId, agents);
     }
 
     /// @notice Records a bet commitment hash for later reveal.
-    function commitBet(uint256 battleId, bytes32 commitHash)
-        external
-        whenNotPaused
-        onlyEOA
-    {
+    function commitBet(
+        uint256 battleId,
+        bytes32 commitHash
+    ) external whenNotPaused onlyEOA {
         require(commitHash != bytes32(0), "Invalid commit");
         require(battles[battleId].startTime > 0, "Battle not registered");
         require(block.timestamp < battles[battleId].startTime, "Battle started");
         require(
-            block.timestamp + MIN_COMMIT_DELAY <= battles[battleId].startTime,
-            "Commit too late"
+            block.timestamp + MIN_COMMIT_DELAY <= battles[battleId].startTime, "Commit too late"
         );
         require(betCommits[battleId][msg.sender][commitHash] == 0, "Commit exists");
 
@@ -147,12 +137,18 @@ contract SpectatorBetting {
     }
 
     /// @notice Legacy bet entrypoint (use commit/reveal instead).
-    function placeBet(uint256, uint256) external payable whenNotPaused onlyEOA {
+    function placeBet(
+        uint256,
+        uint256
+    ) external payable whenNotPaused onlyEOA {
         revert("Use commit-reveal");
     }
 
     /// @notice Marks a battle as resolved and sets the winning agent index.
-    function resolveBets(uint256 battleId, uint256 winningAgentIndex) external onlyArena {
+    function resolveBets(
+        uint256 battleId,
+        uint256 winningAgentIndex
+    ) external onlyArena {
         require(battles[battleId].startTime > 0, "Battle not registered");
         require(!battles[battleId].resolved, "Already resolved");
         require(winningAgentIndex < battleAgents[battleId].length, "Invalid agent index");
@@ -178,13 +174,15 @@ contract SpectatorBetting {
     }
 
     /// @notice Claims payout for the winning agent bet.
-    function claimPayout(uint256 battleId) external whenNotPaused onlyEOA {
+    function claimPayout(
+        uint256 battleId
+    ) external whenNotPaused onlyEOA {
         BattleInfo storage battle = battles[battleId];
         require(battle.resolved, "Battle not resolved");
 
         uint256 winningAgentIndex = battle.winningAgentIndex;
         Bet storage bet = bets[battleId][winningAgentIndex][msg.sender];
-        
+
         require(bet.amount > 0, "No bet placed");
         require(!bet.claimed, "Already claimed");
 
@@ -203,14 +201,17 @@ contract SpectatorBetting {
         }
         bet.claimed = true;
 
-        (bool success, ) = payable(msg.sender).call{value: payout}("");
+        (bool success,) = payable(msg.sender).call{value: payout}("");
         require(success, "Payout failed");
 
         emit BetClaimed(battleId, msg.sender, payout);
     }
 
     /// @notice Returns claimable payout for a bettor on a battle.
-    function s_betPayouts(address bettor, uint256 battleId) external view returns (uint256) {
+    function s_betPayouts(
+        address bettor,
+        uint256 battleId
+    ) external view returns (uint256) {
         BattleInfo storage battle = battles[battleId];
         if (!battle.resolved) {
             return 0;
@@ -224,10 +225,13 @@ contract SpectatorBetting {
     }
 
     /// @notice Returns the current odds for an agent in a battle.
-    function getOdds(uint256 battleId, uint256 agentIndex) external view returns (uint256) {
+    function getOdds(
+        uint256 battleId,
+        uint256 agentIndex
+    ) external view returns (uint256) {
         uint256 agentPool = totalWageredPerAgent[battleId][agentIndex];
         if (agentPool == 0) return 0;
-        
+
         return (totalPool[battleId] * ODDS_SCALE) / agentPool;
     }
 
@@ -243,7 +247,9 @@ contract SpectatorBetting {
     }
 
     /// @notice Pauses or unpauses betting.
-    function setPaused(bool _paused) external {
+    function setPaused(
+        bool _paused
+    ) external {
         require(msg.sender == arena, "Only arena");
         paused = _paused;
         emit Paused(_paused);

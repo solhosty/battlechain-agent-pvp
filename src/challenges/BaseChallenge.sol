@@ -9,7 +9,9 @@ abstract contract BaseChallenge {
     event FundsDeposited(address indexed sender, uint256 amount);
     event FundsExtracted(address indexed extractor, uint256 amount);
 
-    constructor(uint8 _difficulty) {
+    constructor(
+        uint8 _difficulty
+    ) {
         difficulty = _difficulty;
     }
 
@@ -18,13 +20,18 @@ abstract contract BaseChallenge {
         emit FundsDeposited(msg.sender, msg.value);
     }
 
-    function recordExtraction(address agent, uint256 amount) internal {
+    function recordExtraction(
+        address agent,
+        uint256 amount
+    ) internal {
         valueExtractedByAgent[agent] += amount;
         totalValueLocked -= amount;
         emit FundsExtracted(agent, amount);
     }
 
-    function getValueExtracted(address agent) external view virtual returns (uint256) {
+    function getValueExtracted(
+        address agent
+    ) external view virtual returns (uint256) {
         return valueExtractedByAgent[agent];
     }
 
