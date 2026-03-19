@@ -9,7 +9,9 @@ contract ReentrancyAttacker {
     uint256 public attackCount;
     uint256 public constant MAX_ATTACKS = 5;
 
-    constructor(address payable _vault) {
+    constructor(
+        address payable _vault
+    ) {
         vault = ReentrancyVault(payable(_vault));
     }
 
@@ -29,16 +31,22 @@ contract ReentrancyAttacker {
 contract VaultDepositor {
     ReentrancyVault public vault;
 
-    constructor(address payable _vault) {
+    constructor(
+        address payable _vault
+    ) {
         vault = ReentrancyVault(payable(_vault));
     }
 
-    function deposit(uint256 amount) external payable {
+    function deposit(
+        uint256 amount
+    ) external payable {
         require(msg.value == amount, "Invalid amount");
         vault.deposit{value: amount}();
     }
 
-    function withdrawTo(address recipient) external {
+    function withdrawTo(
+        address recipient
+    ) external {
         vault.withdrawTo(recipient);
     }
 
@@ -47,13 +55,13 @@ contract VaultDepositor {
 
 contract ReentrancyVaultTest is Test {
     ReentrancyVault public vault;
-    
+
     address public victim = address(1);
     address public attacker = address(2);
 
     function setUp() public {
         vault = new ReentrancyVault();
-        
+
         // Fund victim and vault
         vm.deal(victim, 10 ether);
         vm.deal(attacker, 2 ether);
@@ -63,7 +71,7 @@ contract ReentrancyVaultTest is Test {
     function testDeposit() public {
         vm.prank(victim);
         vault.deposit{value: 5 ether}();
-        
+
         assertEq(vault.balances(victim), 5 ether);
         assertEq(vault.totalValueLocked(), 5 ether);
     }
@@ -71,12 +79,12 @@ contract ReentrancyVaultTest is Test {
     function testWithdrawAll() public {
         vm.prank(victim);
         vault.deposit{value: 5 ether}();
-        
+
         uint256 initialBalance = victim.balance;
-        
+
         vm.prank(victim);
         vault.withdrawAll();
-        
+
         assertEq(victim.balance - initialBalance, 5 ether);
         assertEq(vault.balances(victim), 0);
     }
@@ -85,10 +93,10 @@ contract ReentrancyVaultTest is Test {
         // Setup: Victim deposits funds
         vm.prank(victim);
         vault.deposit{value: 5 ether}();
-        
+
         // Deploy attacker contract
         ReentrancyAttacker exploiter = new ReentrancyAttacker(payable(address(vault)));
-        
+
         uint256 vaultBalanceBefore = address(vault).balance;
         uint256 attackerBalanceBefore = address(exploiter).balance;
 
@@ -113,11 +121,11 @@ contract ReentrancyVaultTest is Test {
 
     function testReceive() public {
         uint256 initialTVL = vault.totalValueLocked();
-        
+
         vm.prank(victim);
-        (bool success, ) = address(vault).call{value: 3 ether}("");
+        (bool success,) = address(vault).call{value: 3 ether}("");
         require(success, "Transfer failed");
-        
+
         assertEq(vault.totalValueLocked(), initialTVL + 3 ether);
         assertEq(vault.balances(victim), 3 ether);
     }

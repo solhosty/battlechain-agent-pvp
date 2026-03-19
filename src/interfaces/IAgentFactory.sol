@@ -10,7 +10,9 @@ interface IAgentFactory {
     ) external returns (address agent);
 
     /// @notice Returns agents deployed by the given owner.
-    function getAgentsByOwner(address owner) external view returns (address[] memory);
+    function getAgentsByOwner(
+        address owner
+    ) external view returns (address[] memory);
 
     /// @notice Returns the total number of agents deployed.
     function getAgentCount() external view returns (uint256);

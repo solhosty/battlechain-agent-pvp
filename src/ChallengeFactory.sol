@@ -12,9 +12,7 @@ contract ChallengeFactory is IChallengeFactory {
     event ChallengeTypeStatusUpdated(ChallengeType indexed challengeType, bool enabled);
     event AuthorizedCallerUpdated(address indexed caller, bool authorized);
     event ChallengeDeployed(
-        ChallengeType indexed challengeType,
-        address indexed instance,
-        address indexed caller
+        ChallengeType indexed challengeType, address indexed instance, address indexed caller
     );
     event OwnerUpdated(address indexed newOwner);
 
@@ -42,7 +40,10 @@ contract ChallengeFactory is IChallengeFactory {
     }
 
     /// @notice Authorizes or revokes a caller for deployments.
-    function setAuthorizedCaller(address caller, bool authorized) external onlyOwner {
+    function setAuthorizedCaller(
+        address caller,
+        bool authorized
+    ) external onlyOwner {
         authorizedCallers[caller] = authorized;
         emit AuthorizedCallerUpdated(caller, authorized);
     }
@@ -66,7 +67,9 @@ contract ChallengeFactory is IChallengeFactory {
     }
 
     /// @notice Transfers contract ownership.
-    function setOwner(address newOwner) external onlyOwner {
+    function setOwner(
+        address newOwner
+    ) external onlyOwner {
         owner = newOwner;
         emit OwnerUpdated(newOwner);
     }

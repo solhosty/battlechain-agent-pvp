@@ -23,7 +23,9 @@ contract ReentrancyVault is BaseChallenge {
     }
 
     /// @notice Withdraws the sender's entire balance to a recipient.
-    function withdrawTo(address recipient) external nonReentrant {
+    function withdrawTo(
+        address recipient
+    ) external nonReentrant {
         require(recipient != address(0), "Invalid recipient");
         _withdrawTo(msg.sender, recipient);
     }
@@ -35,14 +37,17 @@ contract ReentrancyVault is BaseChallenge {
         emit FundsDeposited(msg.sender, msg.value);
     }
 
-    function _withdrawTo(address account, address recipient) internal {
+    function _withdrawTo(
+        address account,
+        address recipient
+    ) internal {
         uint256 amount = balances[account];
         require(amount > 0, "No balance");
 
         balances[account] = 0;
         recordExtraction(account, amount);
 
-        (bool success, ) = recipient.call{value: amount}("");
+        (bool success,) = recipient.call{value: amount}("");
         require(success, "Transfer failed");
     }
 
